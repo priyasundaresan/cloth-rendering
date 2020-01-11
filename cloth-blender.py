@@ -1,4 +1,5 @@
 import bpy
+import json
 import bpy, bpy_extras
 from math import *
 from mathutils import *
@@ -103,7 +104,7 @@ def add_camera_light():
     bpy.ops.object.camera_add(location=(0,0,8), rotation=(0,0,0))
     bpy.context.scene.camera = bpy.context.object
 
-def render(filename, engine, episode):
+def render(filename, engine, episode, cloth, annotations=None):
     scene = bpy.context.scene
     scene.render.engine = engine
     scene.render.filepath = "./images/{}".format(filename)
@@ -117,10 +118,14 @@ def render(filename, engine, episode):
     elif engine == "BLENDER_EEVEE":
         scene.eevee.taa_samples = 1
         scene.eevee.taa_render_samples = 1
-    for frame in range(scene.frame_start, scene.frame_end+1):
-        scene.render.filepath = filename % ((scene.frame_end - scene.frame_start)*episode + frame)
-        scene.frame_set(frame)
+    for frame in range(0, scene.frame_end+1):
+        index = ((scene.frame_end - scene.frame_start)*episode + frame)
+        scene.render.filepath = filename % index
         bpy.ops.render.render(write_still=True)
+        if annotations is not None:
+            annotations = annotate(cloth, index, annotations, 300)
+        scene.frame_set(frame)
+    return annotations
 
 def render_dataset(num_episodes, filename, texture_filepath='', color=None):
     clear_scene()
@@ -133,14 +138,40 @@ def render_dataset(num_episodes, filename, texture_filepath='', color=None):
     elif color:
         engine = 'BLENDER_WORKBENCH'
         colorize(cloth, color)
-    for i in range(num_episodes):
+    annot = {}
+    for episode in range(num_episodes):
         reset_cloth(cloth)
         cloth = generate_cloth_state(cloth)
-        render(filename, engine, i)
+        annot = render(filename, engine, episode, cloth, annotations=annot)
+    with open("./images/knots_info.json", 'w') as outfile:
+        json.dump(annot, outfile, sort_keys=True, indent=2)
+
+def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_height=480):
+    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
+    scene = bpy.context.scene
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    cloth_deformed = cloth.evaluated_get(depsgraph)
+    vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[::len(list(cloth_deformed.data.vertices))//num_annotations]] 
+    scene.render.resolution_percentage = 100
+    render_scale = scene.render.resolution_percentage / 100
+    scene.render.resolution_x = render_width
+    scene.render.resolution_y = render_height
+    render_size = (
+            int(scene.render.resolution_x * render_scale),
+            int(scene.render.resolution_y * render_scale),
+            )
+    pixels = []
+    for i in range(len(vertices)):
+        v = vertices[i]
+        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
+        pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+        pixels.append([pixel])
+    mapping[frame] = pixels
+    return mapping
     
 if __name__ == '__main__':
     texture_filepath = 'textures/cloth.jpg'
     green = (0,0.5,0.5,1)
-    filename = "rgb_%06d.png"
-    episodes = 2
+    filename = "images/%06d_rgb.png"
+    episodes = 1
     render_dataset(episodes, filename, color=green)
