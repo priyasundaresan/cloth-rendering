@@ -124,11 +124,11 @@ def render(filename, engine, episode, cloth, annotations=None, num_annotations=0
         # Render 10 images per episode (episode is really 30 frames)
         if frame%3==0:
             index = ((scene.frame_end - scene.frame_start)*episode + frame)//3 
+            render_mask("image_masks/%06d_visible_mask.png", index)
             scene.render.filepath = filename % index
             bpy.ops.render.render(write_still=True)
             if annotations is not None:
                 annotations = annotate(cloth, index, annotations, num_annotations)
-            #render_mask("image_masks/%06d_visible_mask.png", index)
         # TODO: this is kind of a hack for now, must increment frame by one or cloth looks weird
         # Baking the simulation seems too time-consuming..., so for now just stepping through the frames
         scene.frame_set(frame)
@@ -137,6 +137,7 @@ def render(filename, engine, episode, cloth, annotations=None, num_annotations=0
 def render_mask(filename, index):
     # NOTE: this method is still in progress
     scene = bpy.context.scene
+    saved = scene.render.engine
     scene.render.engine = 'BLENDER_EEVEE'
     scene.eevee.taa_samples = 1
     scene.eevee.taa_render_samples = 1
@@ -155,6 +156,12 @@ def render_mask(filename, index):
     links.new(math_node.outputs[0], composite.inputs["Image"])
     scene.render.filepath = filename % index
     bpy.ops.render.render(write_still=True)
+    # Clean up 
+    scene.render.engine = saved
+    for node in tree.nodes:
+        if node.name != "Render Layers":
+            tree.nodes.remove(node)
+    scene.use_nodes = False
 
 def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_height=480):
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
@@ -186,7 +193,7 @@ def render_dataset(num_episodes, filename, num_annotations, texture_filepath='',
     add_camera_light()
     table = make_table()
     cloth = make_cloth()
-    if texture_filepath:
+    if texture_filepath != '':
         engine = 'BLENDER_EEVEE'
         pattern(cloth, texture_filepath)
     elif color:
@@ -201,7 +208,8 @@ def render_dataset(num_episodes, filename, num_annotations, texture_filepath='',
         json.dump(annot, outfile, sort_keys=True, indent=2)
     
 if __name__ == '__main__':
-    texture_filepath = 'textures/cloth.jpg'
+    #texture_filepath = 'textures/cloth.jpg'
+    #texture_filepath = 'textures/qr.png'
     green = (0,0.5,0.5,1)
     filename = "images/%06d_rgb.png"
     episodes = 1 # Note each episode has 10 rendered frames 
