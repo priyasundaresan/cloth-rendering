@@ -65,6 +65,8 @@ def generate_cloth_state(cloth):
     subsample = sample(range(len(cloth.data.vertices)), n)
     pinned_group.add(subsample, 1.0, 'ADD')
     cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
+    # Episode length = 30 frames
+    bpy.context.scene.frame_start = 0 
     bpy.context.scene.frame_end = 30 # Roughly when the cloth settles
     return cloth
 
@@ -104,11 +106,11 @@ def add_camera_light():
     bpy.ops.object.camera_add(location=(0,0,8), rotation=(0,0,0))
     bpy.context.scene.camera = bpy.context.object
 
-def render(filename, engine, episode, cloth, annotations=None):
+def render(filename, engine, episode, cloth, annotations=None, num_annotations=0):
     scene = bpy.context.scene
     scene.render.engine = engine
     scene.render.filepath = "./images/{}".format(filename)
-    scene.view_settings.exposure = 1.4
+    scene.view_settings.exposure = 1.3
     if engine == 'BLENDER_WORKBENCH':
         scene.render.image_settings.color_mode = 'RGB'
         scene.render.display_mode
@@ -118,33 +120,19 @@ def render(filename, engine, episode, cloth, annotations=None):
     elif engine == "BLENDER_EEVEE":
         scene.eevee.taa_samples = 1
         scene.eevee.taa_render_samples = 1
-    for frame in range(0, scene.frame_end+1):
-        index = ((scene.frame_end - scene.frame_start)*episode + frame)
-        scene.render.filepath = filename % index
-        bpy.ops.render.render(write_still=True)
-        if annotations is not None:
-            annotations = annotate(cloth, index, annotations, 300)
+    for frame in range(0, scene.frame_end):
+        # Render 10 images per episode (episode is really 30 frames)
+        if frame%3==0:
+            index = ((scene.frame_end - scene.frame_start)*episode + frame)//3 
+            scene.render.filepath = filename % index
+            bpy.ops.render.render(write_still=True)
+            if annotations is not None:
+                annotations = annotate(cloth, index, annotations, num_annotations)
+        # TODO: this is kind of a hack for now, must increment frame by one or cloth looks weird
+        # Baking the simulation also seems too time-consuming...
         scene.frame_set(frame)
     return annotations
 
-def render_dataset(num_episodes, filename, texture_filepath='', color=None):
-    clear_scene()
-    add_camera_light()
-    table = make_table()
-    cloth = make_cloth()
-    if texture_filepath:
-        engine = 'BLENDER_EEVEE'
-        pattern(cloth, texture_filepath)
-    elif color:
-        engine = 'BLENDER_WORKBENCH'
-        colorize(cloth, color)
-    annot = {}
-    for episode in range(num_episodes):
-        reset_cloth(cloth)
-        cloth = generate_cloth_state(cloth)
-        annot = render(filename, engine, episode, cloth, annotations=annot)
-    with open("./images/knots_info.json", 'w') as outfile:
-        json.dump(annot, outfile, sort_keys=True, indent=2)
 
 def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_height=480):
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
@@ -168,10 +156,33 @@ def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_he
         pixels.append([pixel])
     mapping[frame] = pixels
     return mapping
+
+def render_dataset(num_episodes, filename, num_annotations, texture_filepath='', color=None):
+    # Remove anything in scene 
+    clear_scene()
+    # Make the camera, lights, table, and cloth only ONCE
+    add_camera_light()
+    table = make_table()
+    cloth = make_cloth()
+    if texture_filepath:
+        engine = 'BLENDER_EEVEE'
+        pattern(cloth, texture_filepath)
+    elif color:
+        engine = 'BLENDER_WORKBENCH'
+        colorize(cloth, color)
+    annot = {}
+    for episode in range(num_episodes):
+        reset_cloth(cloth) # Restores cloth to flat state
+        cloth = generate_cloth_state(cloth) # Creates a new deformed state
+        annot = render(filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Save ground truth
+    with open("./images/knots_info.json", 'w') as outfile:
+        json.dump(annot, outfile, sort_keys=True, indent=2)
     
 if __name__ == '__main__':
     texture_filepath = 'textures/cloth.jpg'
     green = (0,0.5,0.5,1)
     filename = "images/%06d_rgb.png"
-    episodes = 1
-    render_dataset(episodes, filename, color=green)
+    episodes = 5
+    num_annotations = 300
+    render_dataset(episodes, filename, num_annotations, color=green)
+    #render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
