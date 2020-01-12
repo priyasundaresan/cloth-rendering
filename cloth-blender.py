@@ -57,7 +57,7 @@ def generate_cloth_state(cloth):
     dy = np.random.uniform(0,0.7,1)*random.choice((-1,1))
     dz = np.random.uniform(0.4,0.8,1)
     cloth.location = (dx,dy,dz)
-    cloth.rotation_euler = (0, 0, random.uniform(-np.pi, np.pi)) # fixed z, rotate only about x/y axis slightly
+    cloth.rotation_euler = (0, 0, random.uniform(0, np.pi)) # fixed z, rotate only about x/y axis slightly
     if 'Pinned' in cloth.vertex_groups:
         cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
     pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
@@ -126,6 +126,7 @@ def render(filename, engine, episode, cloth, annotations=None, num_annotations=0
             index = ((scene.frame_end - scene.frame_start)*episode + frame)//3 
             scene.render.filepath = filename % index
             bpy.ops.render.render(write_still=True)
+            render_mask("image_masks/%06d_visible_mask.png", index)
             if annotations is not None:
                 annotations = annotate(cloth, index, annotations, num_annotations)
         # TODO: this is kind of a hack for now, must increment frame by one or cloth looks weird
@@ -133,6 +134,26 @@ def render(filename, engine, episode, cloth, annotations=None, num_annotations=0
         scene.frame_set(frame)
     return annotations
 
+def render_mask(filename, index):
+    scene = bpy.context.scene
+    scene.render.engine = 'BLENDER_EEVEE'
+    scene.eevee.taa_samples = 1
+    scene.eevee.taa_render_samples = 1
+    scene.use_nodes = True
+    tree = bpy.context.scene.node_tree
+    links = tree.links
+    render_node = tree.nodes["Render Layers"]
+    norm_node = tree.nodes.new(type="CompositorNodeNormalize")
+    inv_node = tree.nodes.new(type="CompositorNodeInvert")
+    math_node = tree.nodes.new(type="CompositorNodeMath")
+    math_node.operation = 'CEIL'
+    composite = tree.nodes.new(type = "CompositorNodeComposite")
+    links.new(render_node.outputs["Depth"], inv_node.inputs["Color"])
+    links.new(inv_node.outputs[0], norm_node.inputs[0])
+    links.new(norm_node.outputs[0], math_node.inputs[0])
+    links.new(math_node.outputs[0], composite.inputs["Image"])
+    scene.render.filepath = filename % index
+    bpy.ops.render.render(write_still=True)
 
 def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_height=480):
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
@@ -182,7 +203,7 @@ if __name__ == '__main__':
     texture_filepath = 'textures/cloth.jpg'
     green = (0,0.5,0.5,1)
     filename = "images/%06d_rgb.png"
-    episodes = 5
+    episodes = 1
     num_annotations = 300
     render_dataset(episodes, filename, num_annotations, color=green)
     #render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
