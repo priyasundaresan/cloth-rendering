@@ -112,8 +112,8 @@ def render(filename, engine, episode, cloth, annotations=None, num_annotations=0
     scene.render.filepath = "./images/{}".format(filename)
     scene.view_settings.exposure = 1.3
     if engine == 'BLENDER_WORKBENCH':
-        scene.render.image_settings.color_mode = 'RGB'
         scene.render.display_mode
+        scene.render.image_settings.color_mode = 'RGB'
         scene.display_settings.display_device = 'None'
         scene.sequencer_colorspace_settings.name = 'XYZ'
         scene.render.image_settings.file_format='PNG'
@@ -126,15 +126,16 @@ def render(filename, engine, episode, cloth, annotations=None, num_annotations=0
             index = ((scene.frame_end - scene.frame_start)*episode + frame)//3 
             scene.render.filepath = filename % index
             bpy.ops.render.render(write_still=True)
-            render_mask("image_masks/%06d_visible_mask.png", index)
             if annotations is not None:
                 annotations = annotate(cloth, index, annotations, num_annotations)
+            #render_mask("image_masks/%06d_visible_mask.png", index)
         # TODO: this is kind of a hack for now, must increment frame by one or cloth looks weird
-        # Baking the simulation also seems too time-consuming...
+        # Baking the simulation seems too time-consuming..., so for now just stepping through the frames
         scene.frame_set(frame)
     return annotations
 
 def render_mask(filename, index):
+    # NOTE: this method is still in progress
     scene = bpy.context.scene
     scene.render.engine = 'BLENDER_EEVEE'
     scene.eevee.taa_samples = 1
@@ -146,7 +147,7 @@ def render_mask(filename, index):
     norm_node = tree.nodes.new(type="CompositorNodeNormalize")
     inv_node = tree.nodes.new(type="CompositorNodeInvert")
     math_node = tree.nodes.new(type="CompositorNodeMath")
-    math_node.operation = 'CEIL'
+    math_node.operation = 'CEIL' # Threshold the depth image
     composite = tree.nodes.new(type = "CompositorNodeComposite")
     links.new(render_node.outputs["Depth"], inv_node.inputs["Color"])
     links.new(inv_node.outputs[0], norm_node.inputs[0])
@@ -195,7 +196,7 @@ def render_dataset(num_episodes, filename, num_annotations, texture_filepath='',
     for episode in range(num_episodes):
         reset_cloth(cloth) # Restores cloth to flat state
         cloth = generate_cloth_state(cloth) # Creates a new deformed state
-        annot = render(filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Save ground truth
+        annot = render(filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(annot, outfile, sort_keys=True, indent=2)
     
@@ -203,7 +204,7 @@ if __name__ == '__main__':
     texture_filepath = 'textures/cloth.jpg'
     green = (0,0.5,0.5,1)
     filename = "images/%06d_rgb.png"
-    episodes = 1
-    num_annotations = 300
+    episodes = 1 # Note each episode has 10 rendered frames 
+    num_annotations = 300 # Pixelwise annotations per image
     render_dataset(episodes, filename, num_annotations, color=green)
     #render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
