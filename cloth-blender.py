@@ -1,4 +1,5 @@
 import bpy
+import os
 import json
 import bpy, bpy_extras
 from math import *
@@ -124,7 +125,7 @@ def render(filename, engine, episode, cloth, annotations=None, num_annotations=0
         # Render 10 images per episode (episode is really 30 frames)
         if frame%3==0:
             index = ((scene.frame_end - scene.frame_start)*episode + frame)//3 
-            render_mask("image_masks/%06d_visible_mask.png", index)
+            #render_mask("image_masks/%06d_visible_mask.png", index)
             scene.render.filepath = filename % index
             bpy.ops.render.render(write_still=True)
             if annotations is not None:
@@ -208,11 +209,16 @@ def render_dataset(num_episodes, filename, num_annotations, texture_filepath='',
         json.dump(annot, outfile, sort_keys=True, indent=2)
     
 if __name__ == '__main__':
+    if not os.path.exists("./images"):
+        os.makedirs('./images')
+    else:
+        os.system('rm -r ./images')
+        os.makedirs('./images')
     #texture_filepath = 'textures/cloth.jpg'
     #texture_filepath = 'textures/qr.png'
     green = (0,0.5,0.5,1)
     filename = "images/%06d_rgb.png"
-    episodes = 1 # Note each episode has 10 rendered frames 
-    num_annotations = 300 # Pixelwise annotations per image
+    episodes = 30 # Note each episode has 10 rendered frames 
+    num_annotations = 200 # Pixelwise annotations per image
     render_dataset(episodes, filename, num_annotations, color=green)
     #render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
