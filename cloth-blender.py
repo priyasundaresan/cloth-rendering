@@ -32,6 +32,10 @@ def make_table():
     # Generate table surface
     bpy.ops.mesh.primitive_plane_add(size=3, location=(0,0,0))
     bpy.ops.object.modifier_add(type='COLLISION')
+
+    #Adi: Increase the friction of the plane
+    #bpy.context.object.collision.friction_factor = 4
+    bpy.context.object.collision.cloth_friction = 20
     return bpy.context.object
 
 def make_cloth():
@@ -46,6 +50,16 @@ def make_cloth():
     bpy.ops.object.modifier_add(type='SUBSURF')
     bpy.context.object.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
     bpy.context.object.modifiers["Cloth"].collision_settings.use_self_collision = True
+
+    #Adi: Add Vertex Weight Edit modifier to change pinned vertices over time
+    bpy.ops.object.modifier_add(type='VERTEX_WEIGHT_EDIT')
+    #bpy.context.object.modifiers["VertexWeightEdit"].vertex_group = "Pinned"
+    bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
+    bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
+    bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
+    bpy.context.object.modifiers["VertexWeightEdit"].remove_threshold = 1
+    bpy.context.object.modifiers["VertexWeightEdit"].use_remove = True
+
     return bpy.context.object
 
 def generate_cloth_state(cloth):
@@ -60,15 +74,59 @@ def generate_cloth_state(cloth):
     cloth.rotation_euler = (0, 0, random.uniform(0, np.pi)) # fixed z, rotate only about x/y axis slightly
     if 'Pinned' in cloth.vertex_groups:
         cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
+
+    #Initial Pinning
     pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
     n = random.choice(range(1,4)) # Number of vertices to pin
     subsample = sample(range(len(cloth.data.vertices)), n)
-    pinned_group.add(subsample, 1.0, 'ADD')
+    pinned_group.add(subsample, 0.99, 'ADD') #Adi: Adding with 0.99 weight so that we can remove pinned vertices after settling
     cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
+    #Adi: Can only assign to "Pinned" after "Pinned" is created
+    cloth.modifiers["VertexWeightEdit"].vertex_group = "Pinned"
+
+
+
     # Episode length = 30 frames
     bpy.context.scene.frame_start = 0 
-    bpy.context.scene.frame_end = 30 # Roughly when the cloth settles
+    bpy.context.scene.frame_end = 90 # Roughly when the cloth settles
     return cloth
+
+def action(cloth, v_index=0, frame_num=0):
+    #v_index is the index of the vertex you want to grab
+
+    #Grab Pinning
+    grab_pinned_group = bpy.context.object.vertex_groups.new(name='Grab')
+    n = 1 # Number of vertices to pin
+    seq = []
+    seq.append(v_index)
+    grab_pinned_group.add(seq, 1.0, 'ADD')
+
+    bpy.ops.object.mode_set(mode = 'OBJECT')
+    obj = bpy.context.active_object
+    bpy.ops.object.mode_set(mode = 'EDIT') 
+    bpy.ops.mesh.select_mode(type="VERT")
+    bpy.ops.mesh.select_all(action = 'DESELECT')
+    bpy.ops.object.mode_set(mode = 'OBJECT')
+    obj.data.vertices[v_index].select = True
+    bpy.ops.object.mode_set(mode = 'EDIT')
+    bpy.ops.object.hook_add_newob()
+
+    bpy.ops.object.mode_set(mode = 'OBJECT')
+
+    cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Grab'
+    bpy.ops.object.modifier_move_up(modifier="Hook-Empty")
+    bpy.ops.object.modifier_move_up(modifier="Hook-Empty")
+
+    bpy.context.scene.frame_set(frame_num)
+    hook = bpy.data.objects['Empty']
+    hook.keyframe_insert(data_path='location')
+
+    bpy.context.scene.frame_set(frame_num+10)
+    bpy.ops.transform.translate(value=(0.1, 0.1, 0), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, release_confirm=True)
+    
+    hook.keyframe_insert(data_path='location')
+
+    
 
 def reset_cloth(cloth):
     cloth.modifiers["Cloth"].settings.vertex_group_mass = ''
@@ -106,7 +164,7 @@ def add_camera_light():
     bpy.ops.object.camera_add(location=(0,0,8), rotation=(0,0,0))
     bpy.context.scene.camera = bpy.context.object
 
-def render(filename, engine, episode, cloth, annotations=None, num_annotations=0):
+def render_old(filename, engine, episode, cloth, annotations=None, num_annotations=0):
     scene = bpy.context.scene
     scene.render.engine = engine
     scene.render.filepath = "./images/{}".format(filename)
@@ -133,6 +191,36 @@ def render(filename, engine, episode, cloth, annotations=None, num_annotations=0
         # Baking the simulation seems too time-consuming..., so for now just stepping through the frames
         scene.frame_set(frame)
     return annotations
+
+def render(frame_num, filename, engine, episode, cloth, annotations=None, num_annotations=0):
+    scene = bpy.context.scene
+    scene.render.engine = engine
+    scene.render.filepath = "./images/{}".format(filename)
+    scene.view_settings.exposure = 1.3
+    if engine == 'BLENDER_WORKBENCH':
+        scene.render.display_mode
+        scene.render.image_settings.color_mode = 'RGB'
+        scene.display_settings.display_device = 'None'
+        scene.sequencer_colorspace_settings.name = 'XYZ'
+        scene.render.image_settings.file_format='PNG'
+    elif engine == "BLENDER_EEVEE":
+        scene.eevee.taa_samples = 1
+        scene.eevee.taa_render_samples = 1
+
+    for frame in range(0, scene.frame_end):
+        # Render 10 images per episode (episode is really 30 frames)
+        if frame==frame_num or frame==3:
+            index = ((scene.frame_end - scene.frame_start)*episode + frame)//3 
+            render_mask("image_masks/%06d_visible_mask.png", index)
+            scene.render.filepath = filename % index
+            bpy.ops.render.render(write_still=True)
+            if annotations is not None:
+                annotations = annotate(cloth, index, annotations, num_annotations)
+        # TODO: this is kind of a hack for now, must increment frame by one or cloth looks weird
+        # Baking the simulation seems too time-consuming..., so for now just stepping through the frames
+        scene.frame_set(frame)
+    return annotations
+
 
 def render_mask(filename, index):
     # NOTE: this method is still in progress
@@ -186,7 +274,7 @@ def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_he
     mapping[frame] = pixels
     return mapping
 
-def render_dataset(num_episodes, filename, num_annotations, texture_filepath='', color=None):
+def render_dataset_old(num_episodes, filename, num_annotations, texture_filepath='', color=None):
     # Remove anything in scene 
     clear_scene()
     # Make the camera, lights, table, and cloth only ONCE
@@ -203,9 +291,50 @@ def render_dataset(num_episodes, filename, num_annotations, texture_filepath='',
     for episode in range(num_episodes):
         reset_cloth(cloth) # Restores cloth to flat state
         cloth = generate_cloth_state(cloth) # Creates a new deformed state
-        annot = render(filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
+        annot = render(29, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(annot, outfile, sort_keys=True, indent=2)
+
+def render_dataset(num_episodes, filename, num_annotations, texture_filepath='', color=None):
+    # Remove anything in scene 
+    clear_scene()
+    # Make the camera, lights, table, and cloth only ONCE
+    add_camera_light()
+    table = make_table()
+    cloth = make_cloth()
+    if texture_filepath != '':
+        engine = 'BLENDER_EEVEE'
+        pattern(cloth, texture_filepath)
+    elif color:
+        engine = 'BLENDER_WORKBENCH'
+        colorize(cloth, color)
+    annot = {}
+    ep_len = 5
+    for episode in range(num_episodes):
+        reset_cloth(cloth) # Restores cloth to flat state
+        cloth = generate_cloth_state(cloth) # Creates a new deformed state
+        for i in range(ep_len): #ep_len should be 10 actions 
+            #Adi: Take an action on the cloth
+            r_index = sample(range(len(cloth.data.vertices)), 1)
+            print(30*(i+1))
+            action(cloth, v_index=0, frame_num=30*(i+1))
+            annot = render(30*(i+2)-1, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
+    with open("./images/knots_info.json", 'w') as outfile:
+        json.dump(annot, outfile, sort_keys=True, indent=2)
+    
+def test(num_episodes=1):
+    # Remove anything in scene 
+    clear_scene()
+    # Make the camera, lights, table, and cloth only ONCE
+    add_camera_light()
+    table = make_table()
+    cloth = make_cloth()
+    for episode in range(num_episodes):
+        reset_cloth(cloth) # Restores cloth to flat state
+        cloth = generate_cloth_state(cloth) # Creates a new deformed state
+        #Adi: Take an action on the cloth
+        #index = sample(range(len(cloth.data.vertices)), 1)
+        #action(cloth, v_index=index)
     
 if __name__ == '__main__':
     #texture_filepath = 'textures/cloth.jpg'
@@ -214,5 +343,8 @@ if __name__ == '__main__':
     filename = "images/%06d_rgb.png"
     episodes = 1 # Note each episode has 10 rendered frames 
     num_annotations = 300 # Pixelwise annotations per image
-    render_dataset(episodes, filename, num_annotations, color=green)
-    #render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
+
+    #render_dataset_old(episodes, filename, num_annotations, color=green)
+    #render_dataset_old(episodes, filename, num_annotations, texture_filepath=texture_filepath)
+    test()
+    #render_dataset(episodes, filename, num_annotations, color=green)
