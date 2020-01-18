@@ -14,7 +14,9 @@ All in Python3:
   
 ### Example Renderings
 ![alt text](https://github.com/priyasundaresan/cloth-rendering/blob/master/images/000010_rgb.png | width=100)
+
 ![alt text](https://github.com/priyasundaresan/cloth-rendering/blob/master/images/000015_rgb.png | width=100)
+
 ![alt text](https://github.com/priyasundaresan/cloth-rendering/blob/master/images/000020_rgb.png | width=100)
 
 ### Setup
