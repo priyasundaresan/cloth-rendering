@@ -11,6 +11,9 @@ All in Python3:
   * `rope-blender.py`: renders images of deformable cloth into directory `cloth-rendering/images` and dumps a JSON file with ground truth annotations into the same folder.
   * `vis.py`: visualizes annotations on rendered images and dumps them into `cloth-rendering/annotated`
   * `mask.py`: renders segmentation masks and dumps them into `cloth-rendering/image_masks.` 
+  
+### Example Renderings
+![alt text](http://github.com/priyasundaresan/cloth-rendering/images/000000_rgb.png)
 
 ### Setup
 * After downloading Blender version 2.8, do the following steps:
