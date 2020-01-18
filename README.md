@@ -13,7 +13,7 @@ All in Python3:
   * `mask.py`: renders segmentation masks and dumps them into `cloth-rendering/image_masks.` 
   
 ### Example Renderings
-<img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/images/000010_rgb.png" height="24">
+<img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/images/000010_rgb.png" height="240">
 
 
 ### Setup
