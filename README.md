@@ -13,7 +13,7 @@ All in Python3:
   * `mask.py`: renders segmentation masks and dumps them into `cloth-rendering/image_masks.` 
   
 ### Example Renderings
-![alt text](http://github.com/priyasundaresan/cloth-rendering/images/000000_rgb.png)
+![alt text](https://github.com/priyasundaresan/cloth-rendering/blob/master/images/000015_rgb.png)
 
 ### Setup
 * After downloading Blender version 2.8, do the following steps:
