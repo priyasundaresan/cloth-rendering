@@ -20,16 +20,18 @@ All in Python3:
 </p>
 
 <p float="left">
+ <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/annotated/000001_annotated.png" height="200">
+ <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/annotated/000005_annotated.png" height="200">
+ <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/annotated/000009_annotated.png" height="200">
+</p>
+
+<p float="left">
  <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000001_rgb.png" height="200">
  <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000005_rgb.png" height="200">
  <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000009_rgb.png" height="200">
 </p>
 
-<p float="left">
- <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/annotated/000001_annotated.png" height="200">
- <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/annotated/000005_annotated.png" height="200">
- <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/annotated/000009_annotated.png" height="200">
-</p>
+
 
 ### Setup
 * After downloading Blender version 2.8, do the following steps:
