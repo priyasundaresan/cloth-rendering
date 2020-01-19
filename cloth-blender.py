@@ -81,7 +81,7 @@ def make_cloth(subdivisions):
 
 def render_single_action(cloth, v_idx, place):
     scene = bpy.context.scene
-    render_path = set_render_settings('BLENDER_WORKBENCH', 'action', 'actions/%06d_rgb.png')
+    render_path = set_render_settings('BLENDER_WORKBENCH', 'actions', '%06d_rgb.png')
     cloth_deformed = update(cloth)
     pick = cloth_deformed.data.vertices[v_idx].co
     for frame in range(0, scene.frame_end//2):
@@ -122,7 +122,7 @@ def generate_cloth_state(cloth, subdivisions):
     cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
     # Episode length = 30 frames
     bpy.context.scene.frame_start = 0 
-    bpy.context.scene.frame_end = 80 # Roughly when the cloth settles (mostly still after this until 250 frames)
+    bpy.context.scene.frame_end = 90 # Roughly when the cloth settles (mostly still after this until 250 frames)
     return cloth
 
 def reset_cloth(cloth):
