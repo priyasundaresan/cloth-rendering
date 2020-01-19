@@ -24,17 +24,17 @@ All in Python3:
 * Add the following line to your .bashrc: 
   * `alias blender="/path/to/blender/blender.app/Contents/MacOS/blender"` replacing the path to blender.app with your downloaded version
 * `cd` into the following directory: `/path/to/blender/blender.app/Contents/Resources/2.80/python/bin`
-* To install dependencies, optionally make a python3 virtualenv, navigate into `cloth-rendering` and run pip3 install -r requirements.txt
+* To install dependencies, optionally make a python3 virtualenv, navigate into `cloth-rendering` and run `pip3 install -r requirements.txt`
 
 ### Rendering Usage
-* Off-screen rendering: run `blender -b -P cloth-blender.py` (-b signals --background, -P signals --python)
-* On-screen rendering: run `blender -P cloth-blender.py` 
+* Off-screen rendering: run `blender -b -P cloth-blender.py` (`-b` signals that the process will run in the background (doesn't launch the Blender app), `-P` signals that you're running a Python script)
+* On-screen rendering: run `blender -P cloth-blender.py` (launches the Blender app once the script executes)
 
 ### Debugging/Development
 * Bugs will most likely be caused by Blender version compatibility; note that this codebase is developed for Blender 2.80
-* First thing to check is stdout when you run `blender -b -P cloth-blender.py`; (you won't see any output in the Blender app itself). If the error is about an API call, ensure that you're using Blender 2.80 (& if you're trying to make it forward or backward compatible, you may need to swap the call that errors with the version-compatible API call - check the Blender changelog)
-* For adding new cloth features, it is almost always easiest to manually play around directly with meshes and objects in the Blender app. Once you get the desired functionality through manually playing around with it, head to the `Scripting` tab and it would have logged the corresponding API calls for everything you clicked (which you can directly use for scripting the functionality)
-* For implementing/debugging things, YouTube Blender tutorials are incredible (if StackOverflow/StackExchange/BlenderExchange doesn't have the answer)!
+* First thing to check is stdout if you're running `blender -P cloth-blender.py`; (you won't see any output in the Blender app itself). If the error is about an API call, ensure that you're using Blender 2.80 (& if you're trying to make it forward or backward compatible, you may need to swap the call that errors with the version-compatible API call - check the Blender changelog)
+* For adding new cloth features, it is almost always easiest to manually play around directly with meshes and objects in the Blender app. Once you get the desired functionality through manually playing around with it, head to the `Scripting` tab and it would have logged the corresponding API calls for everything you did (which you can directly use for scripting the functionality)
+* For implementing new things, YouTube Blender tutorials are incredible! Even if they're manual, you can always follow a tutorial manually and then port the functionality to a script later on
 
 ### Example Workflow
 * Run `blender -b -P cloth-blender.py` to produce renderings of the cloth in different states
