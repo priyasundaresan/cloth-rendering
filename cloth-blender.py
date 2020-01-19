@@ -31,7 +31,7 @@ def clear_scene():
 
 def make_table():
     # Generate table surface
-    bpy.ops.mesh.primitive_plane_add(size=3, location=(0,0,0))
+    bpy.ops.mesh.primitive_plane_add(size=2, location=(0,0,0))
     bpy.ops.object.modifier_add(type='COLLISION')
     return bpy.context.object
 
@@ -54,8 +54,7 @@ def make_polygon(subdivisions):
 def make_cloth(subdivisions):
     '''Create cloth and generate new state'''
     # Make cloth with ordered vertices (up-down and left-right)
-    verts, edges = make_polygon(subdivisions)
-    print(len(verts))
+    verts, edges = make_polygon(subdivisions) # This makes cloth vertices ordered nicely (top-bottom, left-right)
     faces = []
     mesh = bpy.data.meshes.new("Plane")
     obj = bpy.data.objects.new("Cloth", mesh)
@@ -70,14 +69,41 @@ def make_cloth(subdivisions):
     bmesh.ops.edgenet_fill(bm, edges=bm.edges)
     bmesh.update_edit_mesh(mesh, True)
     bpy.ops.object.editmode_toggle()
-    
+
+    cloth = bpy.context.object
     # Add cloth and collision physics
     bpy.ops.object.modifier_add(type='CLOTH')
+    cloth.modifiers["Cloth"].collision_settings.use_self_collision = True
     bpy.ops.object.modifier_add(type='SUBSURF')
-    bpy.context.object.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
-    bpy.context.object.modifiers["Cloth"].collision_settings.use_self_collision = True
-    cloth = bpy.context.object
+    cloth.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
+    cloth.modifiers["Subdivision"].show_on_cage = True
     return cloth
+
+def render_single_action(cloth, v_idx, place):
+    scene = bpy.context.scene
+    render_path = set_render_settings('BLENDER_WORKBENCH', 'action', 'actions/%06d_rgb.png')
+    cloth_deformed = update(cloth)
+    pick = cloth_deformed.data.vertices[v_idx].co
+    for frame in range(0, scene.frame_end//2):
+        if frame%3==0:
+            index = frame//3 
+            scene.render.filepath = render_path % index
+            bpy.ops.render.render(write_still=True)
+        scene.frame_set(frame)
+    unpin(cloth)
+    bpy.ops.object.armature_add(location=pick)
+    pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
+    for frame in range(scene.frame_end//2, scene.frame_end):
+        if frame%3==0:
+            index = frame//3 
+            scene.render.filepath = render_path % index
+            bpy.ops.render.render(write_still=True)
+        scene.frame_set(frame)
+
+def unpin(cloth):
+    if 'Pinned' in cloth.vertex_groups:
+        cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
+    cloth.modifiers["Cloth"].settings.vertex_group_mass = ''
 
 def generate_cloth_state(cloth, subdivisions):
     # Move cloth slightly above the table and simulate a drop
@@ -89,8 +115,6 @@ def generate_cloth_state(cloth, subdivisions):
     dz = np.random.uniform(0.4,0.8,1)
     cloth.location = (dx,dy,dz)
     cloth.rotation_euler = (0, 0, random.uniform(0, np.pi)) # fixed z, rotate only about x/y axis slightly
-    if 'Pinned' in cloth.vertex_groups:
-        cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
     pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
     n = random.choice(range(1,4)) # Number of vertices to pin
     subsample = sample(range(len(cloth.data.vertices)), n)
@@ -98,12 +122,13 @@ def generate_cloth_state(cloth, subdivisions):
     cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
     # Episode length = 30 frames
     bpy.context.scene.frame_start = 0 
-    bpy.context.scene.frame_end = 30 # Roughly when the cloth settles
+    bpy.context.scene.frame_end = 80 # Roughly when the cloth settles (mostly still after this until 250 frames)
     return cloth
 
 def reset_cloth(cloth):
-    cloth.modifiers["Cloth"].settings.vertex_group_mass = ''
+    unpin(cloth)
     cloth.location = (0,0,0)
+    cloth.rotation_euler = (0,0,0)
     bpy.context.scene.frame_set(0)
 
 def set_viewport_shading(mode):
@@ -137,31 +162,18 @@ def add_camera_light():
     bpy.ops.object.camera_add(location=(0,0,8), rotation=(0,0,0))
     bpy.context.scene.camera = bpy.context.object
 
-def render(filename, engine, episode, cloth, annotations=None, num_annotations=0):
+def render(folder, filename, engine, episode, cloth, annotations=None, num_annotations=0):
     scene = bpy.context.scene
-    scene.render.engine = engine
-    scene.render.filepath = "./images/{}".format(filename)
-    scene.view_settings.exposure = 1.3
-    if engine == 'BLENDER_WORKBENCH':
-        scene.render.display_mode
-        scene.render.image_settings.color_mode = 'RGB'
-        scene.display_settings.display_device = 'None'
-        scene.sequencer_colorspace_settings.name = 'XYZ'
-        scene.render.image_settings.file_format='PNG'
-    elif engine == "BLENDER_EEVEE":
-        scene.eevee.taa_samples = 1
-        scene.eevee.taa_render_samples = 1
-    for frame in range(0, scene.frame_end):
+    render_path = set_render_settings(engine, folder, filename)
+    for frame in range(0, 30):
         # Render 10 images per episode (episode is really 30 frames)
         if frame%3==0:
-            index = ((scene.frame_end - scene.frame_start)*episode + frame)//3 
+            index = ((30 - scene.frame_start)*episode + frame)//3 
             #render_mask("image_masks/%06d_visible_mask.png", index)
-            scene.render.filepath = filename % index
+            scene.render.filepath = render_path % index
             bpy.ops.render.render(write_still=True)
             if annotations is not None:
                 annotations = annotate(cloth, index, annotations, num_annotations)
-        # TODO: this is kind of a hack for now, must increment frame by one or cloth looks weird
-        # Baking the simulation seems too time-consuming..., so for now just stepping through the frames
         scene.frame_set(frame)
     return annotations
 
@@ -169,9 +181,7 @@ def render_mask(filename, index):
     # NOTE: this method is still in progress
     scene = bpy.context.scene
     saved = scene.render.engine
-    scene.render.engine = 'BLENDER_EEVEE'
-    scene.eevee.taa_samples = 1
-    scene.eevee.taa_render_samples = 1
+    set_render_settings('BLENDER_EEVEE', folder, filename)
     scene.use_nodes = True
     tree = bpy.context.scene.node_tree
     links = tree.links
@@ -194,21 +204,44 @@ def render_mask(filename, index):
             tree.nodes.remove(node)
     scene.use_nodes = False
 
-def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_height=480):
-    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
+def update(cloth):
+    # Call this method whenever you want the updated coordinates of the cloth after it has been deformed
     scene = bpy.context.scene
     depsgraph = bpy.context.evaluated_depsgraph_get()
     cloth_deformed = cloth.evaluated_get(depsgraph)
-    #vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[::len(list(cloth_deformed.data.vertices))//num_annotations]] 
-    vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[:num_annotations]] 
+    return cloth_deformed
+
+def set_render_settings(engine, folder, filename, render_width=640, render_height=480):
+    scene = bpy.context.scene
     scene.render.resolution_percentage = 100
     render_scale = scene.render.resolution_percentage / 100
     scene.render.resolution_x = render_width
     scene.render.resolution_y = render_height
-    render_size = (
-            int(scene.render.resolution_x * render_scale),
-            int(scene.render.resolution_y * render_scale),
-            )
+    scene.render.engine = engine
+    filename = "./{}/{}".format(folder, filename)
+    scene.view_settings.exposure = 1.3
+    if engine == 'BLENDER_WORKBENCH':
+        scene.render.display_mode
+        scene.render.image_settings.color_mode = 'RGB'
+        scene.display_settings.display_device = 'None'
+        scene.sequencer_colorspace_settings.name = 'XYZ'
+        scene.render.image_settings.file_format='PNG'
+    elif engine == "BLENDER_EEVEE":
+        scene.eevee.taa_samples = 1
+        scene.eevee.taa_render_samples = 1
+    scene.render.resolution_percentage = 100
+    render_scale = scene.render.resolution_percentage / 100
+    scene.render.resolution_x = render_width
+    scene.render.resolution_y = render_height
+    return filename
+
+def annotate(cloth, frame, mapping, num_annotations):
+    scene = bpy.context.scene
+    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
+    cloth_deformed = update(cloth)
+    #vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[::len(list(cloth_deformed.data.vertices))//num_annotations]] 
+    vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[:num_annotations]] 
+    render_size = (scene.render.resolution_x, scene.render.resolution_y)
     pixels = []
     for i in range(len(vertices)):
         v = vertices[i]
@@ -218,10 +251,13 @@ def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_he
     mapping[frame] = pixels
     return mapping
 
-def render_dataset(num_episodes, filename, num_annotations, subdivisions, texture_filepath='', color=None):
-    # Remove anything in scene 
+def render_dataset(num_episodes, folder, filename, num_annotations, subdivisions, texture_filepath='', color=None):
+    if not os.path.exists("./images"):
+        os.makedirs('./images')
+    else:
+        os.system('rm -r ./images')
+        os.makedirs('./images')
     clear_scene()
-    # Make the camera, lights, table, and cloth only ONCE
     add_camera_light()
     table = make_table()
     cloth = make_cloth(subdivisions)
@@ -235,21 +271,25 @@ def render_dataset(num_episodes, filename, num_annotations, subdivisions, textur
     for episode in range(num_episodes):
         reset_cloth(cloth) # Restores cloth to flat state
         cloth = generate_cloth_state(cloth, subdivisions) # Creates a new deformed state
-        annot = render(filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
+        annot = render(folder, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(annot, outfile, sort_keys=True, indent=2)
     
 if __name__ == '__main__':
-    if not os.path.exists("./images"):
-        os.makedirs('./images')
-    else:
-        os.system('rm -r ./images')
-        os.makedirs('./images')
     texture_filepath = 'textures/asymm.jpg'
     green = (0,0.5,0.5,1)
-    filename = "images/%06d_rgb.png"
-    episodes = 1 # Note each episode has 10 rendered frames 
+    folder = "images"
+    filename = "%06d_rgb.png"
+    episodes = 2 # Notes each episode has 10 rendered frames 
     subdivisions = 25
     num_annotations = subdivisions**2 # Pixelwise annotations per image
-    render_dataset(episodes, filename, num_annotations, subdivisions, color=green)
+    #render_dataset(episodes, folder, filename, num_annotations, subdivisions, color=green)
     #render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
+
+    clear_scene()
+    add_camera_light()
+    table = make_table()
+    cloth = make_cloth(subdivisions)
+    colorize(cloth, green)
+    cloth = generate_cloth_state(cloth, subdivisions) # Creates a new deformed state
+    render_single_action(cloth, 0, (0,-1,3))
