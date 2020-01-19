@@ -19,6 +19,12 @@ All in Python3:
  <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/images/000020_rgb.png" height="200">
 </p>
 
+<p float="left">
+ <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000010_rgb.png" height="200">
+ <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000015_rgb.png" height="200">
+ <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000020_rgb.png" height="200">
+</p>
+
 ### Setup
 * After downloading Blender version 2.8, do the following steps:
 * Add the following line to your .bashrc: 
