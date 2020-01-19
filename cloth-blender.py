@@ -35,25 +35,55 @@ def make_table():
     bpy.ops.object.modifier_add(type='COLLISION')
     return bpy.context.object
 
-def make_cloth():
+def make_polygon(subdivisions):
+    verts = []
+    for x in np.linspace(-1,1,subdivisions):
+        for y in np.linspace(-1,1,subdivisions):
+            verts.append((x,y,0))
+    edges = []
+    for i in range(len(verts)):
+        # For each vertex, add an edge right & down
+        right = i+1
+        down = i+subdivisions
+        if i%subdivisions != (subdivisions-1) and right < len(verts):
+            edges.append((i, right))
+        if down < len(verts):
+            edges.append((i, down))
+    return verts, edges
+
+def make_cloth(subdivisions):
     '''Create cloth and generate new state'''
-    # Generate a rigid cloth, add cloth and collision physics
-    bpy.ops.mesh.primitive_plane_add(size=2, location=(0,0,0))
-    bpy.ops.object.modifier_add(type='COLLISION')
+    # Make cloth with ordered vertices (up-down and left-right)
+    verts, edges = make_polygon(subdivisions)
+    print(len(verts))
+    faces = []
+    mesh = bpy.data.meshes.new("Plane")
+    obj = bpy.data.objects.new("Cloth", mesh)
+    bpy.context.collection.objects.link(obj)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    mesh = obj.data
+    mesh.from_pydata(verts, edges, faces)
+    mesh.update()
     bpy.ops.object.editmode_toggle()
-    bpy.ops.mesh.subdivide(number_cuts=25) # Tune this number for cloth detail
+    bm = bmesh.from_edit_mesh(mesh)
+    bmesh.ops.edgenet_fill(bm, edges=bm.edges)
+    bmesh.update_edit_mesh(mesh, True)
     bpy.ops.object.editmode_toggle()
+    
+    # Add cloth and collision physics
     bpy.ops.object.modifier_add(type='CLOTH')
     bpy.ops.object.modifier_add(type='SUBSURF')
     bpy.context.object.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
     bpy.context.object.modifiers["Cloth"].collision_settings.use_self_collision = True
-    return bpy.context.object
+    cloth = bpy.context.object
+    return cloth
 
-def generate_cloth_state(cloth):
+def generate_cloth_state(cloth, subdivisions):
     # Move cloth slightly above the table and simulate a drop
     # Pinned group is the vertices that should not fall
     if cloth is None:
-        cloth = make_cloth()
+        cloth = make_cloth(subdivisions)
     dx = np.random.uniform(0,0.7,1)*random.choice((-1,1))
     dy = np.random.uniform(0,0.7,1)*random.choice((-1,1))
     dz = np.random.uniform(0.4,0.8,1)
@@ -169,7 +199,8 @@ def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_he
     scene = bpy.context.scene
     depsgraph = bpy.context.evaluated_depsgraph_get()
     cloth_deformed = cloth.evaluated_get(depsgraph)
-    vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[::len(list(cloth_deformed.data.vertices))//num_annotations]] 
+    #vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[::len(list(cloth_deformed.data.vertices))//num_annotations]] 
+    vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[:num_annotations]] 
     scene.render.resolution_percentage = 100
     render_scale = scene.render.resolution_percentage / 100
     scene.render.resolution_x = render_width
@@ -187,13 +218,13 @@ def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_he
     mapping[frame] = pixels
     return mapping
 
-def render_dataset(num_episodes, filename, num_annotations, texture_filepath='', color=None):
+def render_dataset(num_episodes, filename, num_annotations, subdivisions, texture_filepath='', color=None):
     # Remove anything in scene 
     clear_scene()
     # Make the camera, lights, table, and cloth only ONCE
     add_camera_light()
     table = make_table()
-    cloth = make_cloth()
+    cloth = make_cloth(subdivisions)
     if texture_filepath != '':
         engine = 'BLENDER_EEVEE'
         pattern(cloth, texture_filepath)
@@ -203,7 +234,7 @@ def render_dataset(num_episodes, filename, num_annotations, texture_filepath='',
     annot = {}
     for episode in range(num_episodes):
         reset_cloth(cloth) # Restores cloth to flat state
-        cloth = generate_cloth_state(cloth) # Creates a new deformed state
+        cloth = generate_cloth_state(cloth, subdivisions) # Creates a new deformed state
         annot = render(filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(annot, outfile, sort_keys=True, indent=2)
@@ -214,11 +245,11 @@ if __name__ == '__main__':
     else:
         os.system('rm -r ./images')
         os.makedirs('./images')
-    #texture_filepath = 'textures/cloth.jpg'
-    #texture_filepath = 'textures/qr.png'
+    texture_filepath = 'textures/asymm.jpg'
     green = (0,0.5,0.5,1)
     filename = "images/%06d_rgb.png"
-    episodes = 30 # Note each episode has 10 rendered frames 
-    num_annotations = 200 # Pixelwise annotations per image
-    render_dataset(episodes, filename, num_annotations, color=green)
+    episodes = 1 # Note each episode has 10 rendered frames 
+    subdivisions = 25
+    num_annotations = subdivisions**2 # Pixelwise annotations per image
+    render_dataset(episodes, filename, num_annotations, subdivisions, color=green)
     #render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
