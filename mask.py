@@ -33,9 +33,8 @@ if __name__ == '__main__':
     	os.system('rm -rf ./image_masks')
     	os.makedirs('./image_masks')
     for filename in os.listdir('./{}'.format(args.dir)):
-    	#mask(filename, args.dir)
     	try:
     		print("Masking %s" % filename)
     		mask(filename, args.dir, args.texture)
     	except:
-    		print("Done")
+            pass

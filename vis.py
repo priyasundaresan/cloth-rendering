@@ -13,10 +13,17 @@ def show_knots(idx, knots_info, save=True):
     img = cv2.imread('images/{}'.format(image_filename))
     pixels = knots_info[str(idx)]
     for i in range(len(pixels)):
-        for (u, v) in pixels[i]:
+        annotations = pixels[i]
+        for i, (u, v) in enumerate(annotations):
             (r, g, b) = colorsys.hsv_to_rgb(float(i)/len(pixels), 1.0, 1.0)
             R, G, B = int(255 * r), int(255 * g), int(255 * b)
+            u1,v1 = annotations[-i-1]
+            print(u,v,u1,v1)
             cv2.circle(img,(int(u), int(v)), 1, (R, G, B), -1)
+            cv2.circle(img,(int(u1), int(v1)), 1, (R, G, B), -1)
+            cv2.imshow("img", img)
+            cv2.waitKey(0)
+            break
     if save:
     	annotated_filename = "{0:06d}_annotated.png".format(idx)
     	cv2.imwrite('./annotated/{}'.format(annotated_filename), img)
@@ -35,6 +42,6 @@ if __name__ == '__main__':
     with open("images/knots_info.json", "r") as stream:
     	knots_info = json.load(stream)
     print("loaded knots info")
-    for i in range(args.num):
+    for i in range(1,args.num):
         print(i)
         show_knots(i, knots_info)
