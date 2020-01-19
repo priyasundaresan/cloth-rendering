@@ -20,7 +20,7 @@ All in Python3:
 </p>
 
 <p float="left">
- <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000000_rgb.png" height="200">
+ <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000001_rgb.png" height="200">
  <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000005_rgb.png" height="200">
  <img src="https://github.com/priyasundaresan/cloth-rendering/blob/master/texture_images/000009_rgb.png" height="200">
 </p>
