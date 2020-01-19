@@ -33,7 +33,7 @@ All in Python3:
   * To manually deform the cloth, select the cloth in `'EDIT'` mode (by pressing `Tab`), press `'G'`, and grab any of the pinned vertices with a mouse to move the rope. You can select groups of nodes at a time by pressing `'Ctrl'` while grabbing nodes.
 
 ### Example Workflow
-* Run `blender -b -P rope-blender.py` to produce renderings of the cloth in different states
+* Run `blender -b -P cloth-blender.py` to produce renderings of the cloth in different states
 * Run `python3 vis.py` to visualize the pixel annotations
 * Run `python3 mask.py` to produce segmentation masks of images
-* Use ground truth annotations and segmentation masks as training inputs for your application!
+* Use the images (/images), annotations (/images/knots_info.json), and segmentation masks (/image_masks) as training data
