@@ -34,7 +34,7 @@ All in Python3:
 * Bugs will most likely be caused by Blender version compatibility; note that this codebase is developed for Blender 2.80
 * First thing to check is stdout when you run `blender -b -P cloth-blender.py`; (you won't see any output in the Blender app itself). If the error is about an API call, ensure that you're using Blender 2.80 (& if you're trying to make it forward or backward compatible, you may need to swap the call that errors with the version-compatible API call - check the Blender changelog)
 * For adding new cloth features, it is almost always easiest to manually play around directly with meshes and objects in the Blender app. Once you get the desired functionality through manually playing around with it, head to the `Scripting` tab and it would have logged the corresponding API calls for everything you clicked (which you can directly use for scripting the functionality)
-* For implementing new features, YouTube Blender tutorials are incredible!
+* For implementing/debugging things, YouTube Blender tutorials are incredible (if StackOverflow/StackExchange/BlenderExchange doesn't have the answer)!
 
 ### Example Workflow
 * Run `blender -b -P cloth-blender.py` to produce renderings of the cloth in different states
