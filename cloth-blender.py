@@ -1,4 +1,5 @@
 import bpy
+import time
 import json
 import bpy, bpy_extras
 from math import *
@@ -53,12 +54,11 @@ def make_cloth():
 
     #Adi: Add Vertex Weight Edit modifier to change pinned vertices over time
     bpy.ops.object.modifier_add(type='VERTEX_WEIGHT_EDIT')
-    #bpy.context.object.modifiers["VertexWeightEdit"].vertex_group = "Pinned"
     bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
     bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
     bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
     bpy.context.object.modifiers["VertexWeightEdit"].remove_threshold = 1
-    bpy.context.object.modifiers["VertexWeightEdit"].use_remove = True
+    bpy.context.object.modifiers["VertexWeightEdit"].use_remove = False
 
     return bpy.context.object
 
@@ -76,13 +76,13 @@ def generate_cloth_state(cloth):
         cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
 
     #Initial Pinning
-    pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
-    n = random.choice(range(1,4)) # Number of vertices to pin
-    subsample = sample(range(len(cloth.data.vertices)), n)
-    pinned_group.add(subsample, 0.99, 'ADD') #Adi: Adding with 0.99 weight so that we can remove pinned vertices after settling
-    cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
+    #pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
+    #n = random.choice(range(1,4)) # Number of vertices to pin
+    #subsample = sample(range(len(cloth.data.vertices)), n)
+    #pinned_group.add(subsample, 0.99, 'ADD') #Adi: Adding with 0.99 weight so that we can remove pinned vertices after settling
+    #cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
     #Adi: Can only assign to "Pinned" after "Pinned" is created
-    cloth.modifiers["VertexWeightEdit"].vertex_group = "Pinned"
+    #cloth.modifiers["VertexWeightEdit"].vertex_group = "Pinned"
 
 
 
@@ -99,7 +99,8 @@ def action(cloth, v_index=0, frame_num=0):
     n = 1 # Number of vertices to pin
     seq = []
     seq.append(v_index)
-    grab_pinned_group.add(seq, 1.0, 'ADD')
+    grab_pinned_group.add(seq, 0.99, 'ADD')
+    cloth.modifiers["VertexWeightEdit"].vertex_group = "Grab"
 
     bpy.ops.object.mode_set(mode = 'OBJECT')
     obj = bpy.context.active_object
@@ -113,17 +114,23 @@ def action(cloth, v_index=0, frame_num=0):
 
     bpy.ops.object.mode_set(mode = 'OBJECT')
 
+    hook = bpy.data.objects['Empty']
+
+
     cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Grab'
     bpy.ops.object.modifier_move_up(modifier="Hook-Empty")
     bpy.ops.object.modifier_move_up(modifier="Hook-Empty")
 
     bpy.context.scene.frame_set(frame_num)
-    hook = bpy.data.objects['Empty']
     hook.keyframe_insert(data_path='location')
 
-    bpy.context.scene.frame_set(frame_num+10)
-    bpy.ops.transform.translate(value=(0.1, 0.1, 0), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, release_confirm=True)
+    #bpy.context.scene.frame_set(frame_num+10)
+    cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
+    bpy.context.scene.frame_set(60)
+    bpy.ops.transform.translate(value=(1, 1, 0), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, release_confirm=True)
     
+    cloth.modifiers["VertexWeightEdit"].use_remove = True
+    cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
     hook.keyframe_insert(data_path='location')
 
     
@@ -334,7 +341,7 @@ def test(num_episodes=1):
         cloth = generate_cloth_state(cloth) # Creates a new deformed state
         #Adi: Take an action on the cloth
         #index = sample(range(len(cloth.data.vertices)), 1)
-        #action(cloth, v_index=index)
+        action(cloth, v_index=0)
     
 if __name__ == '__main__':
     #texture_filepath = 'textures/cloth.jpg'
