@@ -12,18 +12,24 @@ def show_knots(idx, knots_info, save=True):
     #img = cv2.imread('images/{}'.format(image_filename)) * 0
     img = cv2.imread('images/{}'.format(image_filename))
     pixels = knots_info[str(idx)]
-    for i in range(len(pixels)):
-        annotations = pixels[i]
-        for i, (u, v) in enumerate(annotations):
-            (r, g, b) = colorsys.hsv_to_rgb(float(i)/len(pixels), 1.0, 1.0)
-            R, G, B = int(255 * r), int(255 * g), int(255 * b)
-            u1,v1 = annotations[-i-1]
-            print(u,v,u1,v1)
-            cv2.circle(img,(int(u), int(v)), 1, (R, G, B), -1)
-            cv2.circle(img,(int(u1), int(v1)), 1, (R, G, B), -1)
-            cv2.imshow("img", img)
-            cv2.waitKey(0)
-            break
+    pixels = [i[0] for i in pixels]
+    n = int(len(pixels)**0.5)
+    print(n)
+    for i, (u, v) in enumerate(pixels):
+        (r, g, b) = colorsys.hsv_to_rgb(float(i)/len(pixels), 1.0, 1.0)
+        R, G, B = int(255 * r), int(255 * g), int(255 * b)
+        row, col = i//n, i%n
+        row_symm, col_symm = n-1-row, n-1-col
+        u1,v1 = pixels[row_symm*n+col]
+        u2,v2 = pixels[row_symm*n+col_symm]
+        u3,v3 = pixels[row*n+col_symm]
+        vis = img.copy()
+        cv2.circle(vis,(int(u), int(v)), 3, (R, G, B), -1)
+        cv2.circle(vis,(int(u1), int(v1)), 3, (R, G, B), -1)
+        cv2.circle(vis,(int(u2), int(v2)), 3, (R, G, B), -1)
+        cv2.circle(vis,(int(u3), int(v3)), 3, (R, G, B), -1)
+        cv2.imshow("img", vis)
+        cv2.waitKey(0)
     if save:
     	annotated_filename = "{0:06d}_annotated.png".format(idx)
     	cv2.imwrite('./annotated/{}'.format(annotated_filename), img)

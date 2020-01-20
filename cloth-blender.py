@@ -1,5 +1,6 @@
 import bpy
 import os
+import cv2
 import json
 import bpy, bpy_extras
 from math import *
@@ -31,7 +32,7 @@ def clear_scene():
 
 def make_table():
     # Generate table surface
-    bpy.ops.mesh.primitive_plane_add(size=2, location=(0,0,0))
+    bpy.ops.mesh.primitive_plane_add(size=5, location=(0,0,0))
     bpy.ops.object.modifier_add(type='COLLISION')
     return bpy.context.object
 
@@ -79,21 +80,66 @@ def make_cloth(subdivisions):
     cloth.modifiers["Subdivision"].show_on_cage = True
     return cloth
 
-def render_single_action(cloth, v_idx, place):
+def render_action_sequence(cloth, v_idx, actions):
     scene = bpy.context.scene
     render_path = set_render_settings('BLENDER_WORKBENCH', 'actions', '%06d_rgb.png')
-    cloth_deformed = update(cloth)
-    pick = cloth_deformed.data.vertices[v_idx].co
-    for frame in range(0, scene.frame_end//2):
+
+    for frame in range(0, 30):
         if frame%3==0:
             index = frame//3 
             scene.render.filepath = render_path % index
             bpy.ops.render.render(write_still=True)
         scene.frame_set(frame)
+
     unpin(cloth)
+
+    for frame in range(30, 75):
+        if frame%3==0:
+            index = frame//3 
+            scene.render.filepath = render_path % index
+            bpy.ops.render.render(write_still=True)
+        scene.frame_set(frame)
+
+    cloth_deformed = update(cloth)
+    pick = cloth_deformed.matrix_world @ cloth_deformed.data.vertices[v_idx].co
+
     bpy.ops.object.armature_add(location=pick)
-    pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
-    for frame in range(scene.frame_end//2, scene.frame_end):
+    arma = bpy.data.objects['Armature']
+    bpy.ops.object.select_all(action='DESELECT')
+    arma.select_set(state=True)
+    bpy.context.view_layer.objects.active = arma
+    bpy.ops.object.mode_set(mode='EDIT')
+    parent_bone = 'Bone' # choose the bone name which you want to be the parent
+    arma.data.edit_bones.active = arma.data.edit_bones[parent_bone]
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT') #deselect all objects
+    cloth.select_set(state=True)
+    arma.select_set(state=True)
+    bpy.context.view_layer.objects.active = arma
+    bpy.ops.object.parent_set(type='ARMATURE_NAME')
+    bpy.context.view_layer.objects.active = cloth
+    bpy.ops.object.modifier_move_up(modifier="Armature")
+    bpy.ops.object.modifier_move_up(modifier="Armature")
+    cloth.vertex_groups['Bone'].name = 'Pinned'
+
+    bpy.ops.object.select_all(action='DESELECT')
+    pinned_group = cloth.vertex_groups['Pinned']
+    pinned_group.add([v_idx], 1.0, 'ADD')
+    cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
+
+    bpy.context.view_layer.objects.active = arma
+    bpy.ops.object.mode_set(mode='POSE')
+    bone=bpy.context.object.pose.bones['Bone']
+
+    bone.keyframe_insert(data_path='location',frame=frame)
+    frame_offset = (scene.frame_end - 75)//len(actions)
+    for i, (dx,dy,dz) in enumerate(actions):
+        bone.location[0] += dx
+        bone.location[1] += dy
+        bone.location[2] += dz
+        bone.keyframe_insert(data_path='location',frame=frame + i*frame_offset)
+
+    for frame in range(75, scene.frame_end):
         if frame%3==0:
             index = frame//3 
             scene.render.filepath = render_path % index
@@ -122,7 +168,7 @@ def generate_cloth_state(cloth, subdivisions):
     cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
     # Episode length = 30 frames
     bpy.context.scene.frame_start = 0 
-    bpy.context.scene.frame_end = 90 # Roughly when the cloth settles (mostly still after this until 250 frames)
+    bpy.context.scene.frame_end = 180 # Roughly when the cloth settles (mostly still after this until 250 frames)
     return cloth
 
 def reset_cloth(cloth):
@@ -292,4 +338,5 @@ if __name__ == '__main__':
     cloth = make_cloth(subdivisions)
     colorize(cloth, green)
     cloth = generate_cloth_state(cloth, subdivisions) # Creates a new deformed state
-    render_single_action(cloth, 0, (0,-1,3))
+    actions = [(0,0,0.5), (0.5,-0.5,0), (0,0,1.0), (-0.5,0.5,0)]
+    render_action_sequence(cloth, 0, actions)
