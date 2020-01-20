@@ -346,13 +346,14 @@ def test(num_episodes=1):
 if __name__ == '__main__':
     #texture_filepath = 'textures/cloth.jpg'
     #texture_filepath = 'textures/qr.png'
-    goal_img_path = 'cloth_images/flat_goal.png'
+    goal_img_path = 'cloth_images/flat_goal_rgb.png'
     green = (0,0.5,0.5,1)
     filename = "images/%06d_rgb.png"
     episodes = 1 # Note each episode has 10 rendered frames 
     num_annotations = 300 # Pixelwise annotations per image
 
-    cv2.imread(goal_img_path)
+    goal_img = cv2.imread(goal_img_path)
+    print(goal_img[0][0])
     #render_dataset_old(episodes, filename, num_annotations, color=green)
     #render_dataset_old(episodes, filename, num_annotations, texture_filepath=texture_filepath)
     test()
