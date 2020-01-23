@@ -1,4 +1,6 @@
+#from sklearn.neighbors import NearestNeighbors
 import bpy
+import cv2
 import time
 import json
 import bpy, bpy_extras
@@ -132,6 +134,58 @@ def action(cloth, v_index=0, frame_num=0):
     cloth.modifiers["VertexWeightEdit"].use_remove = True
     cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
     hook.keyframe_insert(data_path='location')
+
+def fold_action(cloth, v_index_grab=0, v_index_release=600, frame_num=0):
+    #v_index is the index of the vertex you want to grab
+
+    #Grab Pinning
+    grab_pinned_group = bpy.context.object.vertex_groups.new(name='Grab')
+    n = 1 # Number of vertices to pin
+    seq = []
+    seq.append(v_index_grab)
+    grab_pinned_group.add(seq, 0.99, 'ADD')
+    cloth.modifiers["VertexWeightEdit"].vertex_group = "Grab"
+
+    bpy.ops.object.mode_set(mode = 'OBJECT')
+    obj = bpy.context.active_object
+    bpy.ops.object.mode_set(mode = 'EDIT') 
+    bpy.ops.mesh.select_mode(type="VERT")
+    bpy.ops.mesh.select_all(action = 'DESELECT')
+    bpy.ops.object.mode_set(mode = 'OBJECT')
+    obj.data.vertices[v_index_grab].select = True
+    bpy.ops.object.mode_set(mode = 'EDIT')
+    bpy.ops.object.hook_add_newob()
+
+    bpy.ops.object.mode_set(mode = 'OBJECT')
+
+    hook = bpy.data.objects['Empty']
+
+
+    cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Grab'
+    bpy.ops.object.modifier_move_up(modifier="Hook-Empty")
+    bpy.ops.object.modifier_move_up(modifier="Hook-Empty")
+
+    bpy.context.scene.frame_set(frame_num)
+    hook.keyframe_insert(data_path='location')
+
+    #bpy.context.scene.frame_set(frame_num+10)
+    cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
+    bpy.context.scene.frame_set(60)
+
+    vertices = [cloth.matrix_world @ v.co for v in list(cloth.data.vertices)] 
+    v_grab = vertices[v_index_grab]
+    v_release = vertices[v_index_release]
+    dx = v_release[0] - v_grab[0]
+    dy = v_release[1] - v_grab[1]
+    dz = v_release[2] - v_grab[2]
+    
+    
+    bpy.ops.transform.translate(value=(dx, dy, dz), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, release_confirm=True)
+    
+    cloth.modifiers["VertexWeightEdit"].use_remove = True
+    cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
+    hook.keyframe_insert(data_path='location')
+    
 
     
 
@@ -275,11 +329,25 @@ def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_he
     pixels = []
     for i in range(len(vertices)):
         v = vertices[i]
+        v_lyst = [v[0], v[1], v[2]]
         camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
+        #pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+        #Adi: Pixel need to be converted to int for key
         pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+        #Adi: Going from pixel to vertex now
+        flattened = pixel[0] * 480 + pixel[1] #Should this be 480 or 640?
+        mapping[flattened] = v_lyst
         pixels.append([pixel])
-    mapping[frame] = pixels
+    #mapping[frame] = pixels
     return mapping
+
+#def knn(self, points, error_margin, k, inputs, model=None):
+#    if model is None:
+#        model = NearestNeighbors(k, error_margin)
+#        model.fit(points)
+#    match_indices = model.kneighbors(inputs, k, return_distance=False).squeeze()
+#    k_matches = points[match_indices]
+#    return model, k_matches
 
 def render_dataset_old(num_episodes, filename, num_annotations, texture_filepath='', color=None):
     # Remove anything in scene 
@@ -316,16 +384,15 @@ def render_dataset(num_episodes, filename, num_annotations, texture_filepath='',
         engine = 'BLENDER_WORKBENCH'
         colorize(cloth, color)
     annot = {}
-    ep_len = 5
+    ep_len = 1
     for episode in range(num_episodes):
         reset_cloth(cloth) # Restores cloth to flat state
         cloth = generate_cloth_state(cloth) # Creates a new deformed state
-        for i in range(ep_len): #ep_len should be 10 actions 
+        for i in range(ep_len): #ep_len should be 10 actions, but right now it can only be one
             #Adi: Take an action on the cloth
-            r_index = sample(range(len(cloth.data.vertices)), 1)
-            print(30*(i+1))
-            action(cloth, v_index=0, frame_num=30*(i+1))
-            annot = render(30*(i+2)-1, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
+            #r_index = sample(range(len(cloth.data.vertices)), 1)
+            action(cloth, v_index=0, frame_num=30*(i)) #Should be i+1 if we drop first
+            annot = render(30*(i+3)-1, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth, should be i+2 if we drop first
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(annot, outfile, sort_keys=True, indent=2)
     
@@ -341,7 +408,9 @@ def test(num_episodes=1):
         cloth = generate_cloth_state(cloth) # Creates a new deformed state
         #Adi: Take an action on the cloth
         #index = sample(range(len(cloth.data.vertices)), 1)
-        action(cloth, v_index=0)
+        #action(cloth, v_index=0)
+        fold_action(cloth)
+
     
 if __name__ == '__main__':
     #texture_filepath = 'textures/cloth.jpg'
@@ -353,7 +422,6 @@ if __name__ == '__main__':
     num_annotations = 300 # Pixelwise annotations per image
 
     goal_img = cv2.imread(goal_img_path)
-    print(goal_img[0][0])
     #render_dataset_old(episodes, filename, num_annotations, color=green)
     #render_dataset_old(episodes, filename, num_annotations, texture_filepath=texture_filepath)
     test()

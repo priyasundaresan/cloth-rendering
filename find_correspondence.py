@@ -18,7 +18,7 @@ COLOR_GREEN = np.array([0,255,0])
 
 #utils.set_cuda_visible_devices([0])
 
-class HeatmapVisualization(object):
+class Descriptors(object):
     """
     Launches a live interactive heatmap visualization.
     """
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
 
-    heatmap_vis = HeatmapVisualization(dcn, dataset_mean, dataset_std_dev, image_dir)
+    heatmap_vis = Descriptors(dcn, dataset_mean, dataset_std_dev, image_dir)
     print "starting heatmap vis"
     heatmap_vis.run()
     
