@@ -4,7 +4,7 @@ import numpy as np
 import warnings
 import logging
 from PIL import Image
-from sklearn.neighbors import NearestNeighbors
+#from sklearn.neighbors import NearestNeighbors
 import torch
 import torch.nn as nn
 from torchvision import transforms
@@ -13,7 +13,7 @@ from torch.autograd import Variable
 sys.path.append("../pytorch-segmentation-detection/")
 sys.path.insert(0, '../pytorch-segmentation-detection/vision/')
 
-import pytorch_segmentation_detection.models.resnet_dilated as resnet_dilated
+#import pytorch_segmentation_detection.models.resnet_dilated as resnet_dilated
 
 class DenseCorrespondenceNetwork(nn.Module):
 

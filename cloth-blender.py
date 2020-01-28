@@ -135,7 +135,7 @@ def action(cloth, v_index=0, frame_num=0):
     cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
     hook.keyframe_insert(data_path='location')
 
-def fold_action(cloth, v_index_grab=0, v_index_release=600, frame_num=0):
+def fold_action(cloth, v_index_grab=0, v_index_release=624, frame_num=0):
     #v_index is the index of the vertex you want to grab
 
     #Grab Pinning

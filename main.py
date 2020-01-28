@@ -8,8 +8,8 @@ import cv2
 import numpy as np
 import copy
 from PIL import Image
-from dense_correspondence_network import DenseCorrespondenceNetwork
-from find_correspondences import CorrespondenceFinder 
+from gym_cloth.envs import dense_correspondence_network as DenseCorrespondenceNetwork
+from gym_cloth.envs.find_correspondences import CorrespondenceFinder 
 from sklearn.neighbors import NearestNeighbors
 from itertools import product
 
@@ -33,9 +33,8 @@ class Descriptors(object):
         :return:
         :rtype:
         """
-	self.img1_pil = Image.open(self.goal_img_path).convert('RGB').resize((640, 480))
+        self.img1_pil = Image.open(self.goal_img_path).convert('RGB').resize((640, 480))
         self.img2_pil = Image.open(os.path.join(self._image_dir, random.choice(os.listdir(self._image_dir)))).convert('RGB').resize((640, 480))
-	self._compute_descriptors()
 
     def compute_descriptors(self):
         """
@@ -43,7 +42,7 @@ class Descriptors(object):
         :return:
         :rtype:
         """
-	print "computing descriptors"
+        print("computing descriptors")
         self.img1 = self._cf.pil_image_to_cv2(self.img1_pil)
         self.img2 = self._cf.pil_image_to_cv2(self.img2_pil)
         self.rgb_1_tensor = self._cf.rgb_image_to_tensor(self.img1_pil)
@@ -71,7 +70,7 @@ class Descriptors(object):
         return best_match_uv
 
 
-    def run(self):
+    def run(self, u, v):
         self.get_new_images()
         self.compute_descriptors()
         best_match_uv = self.find_best_match(u, v)
@@ -102,7 +101,7 @@ if __name__ == "__main__":
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
 
     heatmap_vis = Descriptors(dcn, dataset_mean, dataset_std_dev, image_dir)
-    print "starting heatmap vis"
+    print("starting heatmap vis")
     heatmap_vis.run()
     
     #print "ran heatmap_vis"
