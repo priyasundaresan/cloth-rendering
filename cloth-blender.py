@@ -11,6 +11,11 @@ import numpy as np
 from random import sample
 import bmesh
 
+
+#Adi: Descriptor related imports
+import os
+import sys
+
 '''Usage: blender -b -P cloth-blender.py'''
 
 def clear_scene():
@@ -413,6 +418,14 @@ def test(num_episodes=1):
 
     
 if __name__ == '__main__':
+    #Adi: So that we can import python files in the same directory
+    dir = os.path.dirname(bpy.data.filepath)
+    if not dir in sys.path:
+        sys.path.append(dir )
+        print(sys.path)
+    from descriptors import main
+    
+
     #texture_filepath = 'textures/cloth.jpg'
     #texture_filepath = 'textures/qr.png'
     goal_img_path = 'cloth_images/flat_goal_rgb.png'
