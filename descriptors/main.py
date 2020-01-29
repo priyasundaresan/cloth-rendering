@@ -33,7 +33,8 @@ class Descriptors(object):
         :return:
         :rtype:
         """
-        self.img1_pil = Image.open(self.goal_img_path).convert('RGB').resize((640, 480))
+        #self.img1_pil = Image.open(self.goal_img_path).convert('RGB').resize((640, 480))
+        self.img1_pil = Image.open(os.path.join(self._image_dir, random.choice(os.listdir(self._image_dir)))).convert('RGB').resize((640, 480))
         self.img2_pil = Image.open(os.path.join(self._image_dir, random.choice(os.listdir(self._image_dir)))).convert('RGB').resize((640, 480))
 
     def compute_descriptors(self):

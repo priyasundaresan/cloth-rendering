@@ -439,3 +439,25 @@ if __name__ == '__main__':
     #render_dataset_old(episodes, filename, num_annotations, texture_filepath=texture_filepath)
     test()
     #render_dataset(episodes, filename, num_annotations, color=green)
+
+    #base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
+    base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
+    network_dir = 'tier1_oracle_1811_consecutive_3'
+    dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
+    dcn.eval()
+    image_dir = "./cloth_images"
+    with open(image_dir + '/knots_info.json', 'r') as f:
+        knots_info = json.load(f)
+    #print(knots_info['0'])
+
+
+    with open('../cfg/dataset_info.json', 'r') as f:
+        dataset_stats = json.load(f)
+    dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
+
+    descriptors = Descriptors(dcn, dataset_mean, dataset_std_dev, image_dir)
+    print("starting correspondence finder")
+    #descriptors.run()
+
+    print("finished correspondence finder")
+    cv2.destroyAllWindows()
