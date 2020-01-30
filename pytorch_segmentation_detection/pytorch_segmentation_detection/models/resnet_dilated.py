@@ -1,5 +1,7 @@
 import torch.nn as nn
-import torchvision.models as models
+#Adi: Changing this line accordingly so that this can work for Python 3
+#import torchvision.models as models
+import pytorch_segmentation_detection.vision.torchvision.models as models
 
 
 class Resnet101_8s(nn.Module):

@@ -7,13 +7,18 @@ from PIL import Image
 #from sklearn.neighbors import NearestNeighbors
 import torch
 import torch.nn as nn
-from torchvision import transforms
+#Adi: Changing this temporarily to try something else
+#from torchvision import transforms
+from pytorch_segmentation_detection.vision.torchvision import transforms
 from torch.autograd import Variable
 
-sys.path.append("../pytorch-segmentation-detection/")
-sys.path.insert(0, '../pytorch-segmentation-detection/vision/')
+#sys.path.append("../pytorch-segmentation-detection/")
+#sys.path.insert(0, '../pytorch-segmentation-detection/vision/')
+sys.path.append("../pytorch_segmentation_detection/")
+sys.path.insert(0, '../pytorch_segmentation_detection/vision/')
 
-#import pytorch_segmentation_detection.models.resnet_dilated as resnet_dilated
+import pytorch_segmentation_detection.pytorch_segmentation_detection.models.resnet_dilated as resnet_dilated
+#module_name = __import__('pytorch-segmentation-detection.pytorch_segmentation_detection.models.resnet_dilated')
 
 class DenseCorrespondenceNetwork(nn.Module):
 

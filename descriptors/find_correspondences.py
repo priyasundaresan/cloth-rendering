@@ -7,7 +7,9 @@ import cv2
 import numpy as np
 import copy
 from PIL import Image
-from torchvision import transforms
+#Adi: Changing this cause sys.path.insert not working for some reason
+from pytorch_segmentation_detection.vision.torchvision import transforms
+#from torchvision import transforms
 #from sklearn.neighbors import NearestNeighbors
 
 #from image_utils import geometric_median, sample_nearest_points_on_mask, farthest_pixel_correspondence

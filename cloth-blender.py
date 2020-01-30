@@ -424,6 +424,7 @@ if __name__ == '__main__':
         sys.path.append(dir )
         print(sys.path)
     from descriptors import main
+    from descriptors.dense_correspondence_network import DenseCorrespondenceNetwork
     
 
     #texture_filepath = 'textures/cloth.jpg'
@@ -440,18 +441,21 @@ if __name__ == '__main__':
     test()
     #render_dataset(episodes, filename, num_annotations, color=green)
 
+    #Adi: This is location of the models on nfs
     #base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
-    base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
+    #Adi: This is location of the models on MacOS local
+    base_dir = '/Users/adivganapathi/Documents/UC Berkeley/Current Projects/dense_descriptor_models'
     network_dir = 'tier1_oracle_1811_consecutive_3'
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
     dcn.eval()
     image_dir = "./cloth_images"
-    with open(image_dir + '/knots_info.json', 'r') as f:
-        knots_info = json.load(f)
+    #with open(image_dir + '/knots_info.json', 'r') as f:
+    #    knots_info = json.load(f)
     #print(knots_info['0'])
 
 
-    with open('../cfg/dataset_info.json', 'r') as f:
+    #with open('../cfg/dataset_info.json', 'r') as f:
+    with open('./cfg/dataset_info.json', 'r') as f:
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
 

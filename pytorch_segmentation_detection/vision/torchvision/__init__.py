@@ -1,7 +1,7 @@
-from torchvision import models
-from torchvision import datasets
-from torchvision import transforms
-from torchvision import utils
+from pytorch_segmentation_detection.vision.torchvision import models
+from pytorch_segmentation_detection.vision.torchvision import datasets
+from pytorch_segmentation_detection.vision.torchvision import transforms
+from pytorch_segmentation_detection.vision.torchvision import utils
 
 
 _image_backend = 'PIL'
