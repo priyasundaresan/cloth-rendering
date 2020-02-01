@@ -25,7 +25,7 @@ class Descriptors(object):
     def __init__(self, dcn, dataset_mean, dataset_std_dev, image_dir):
         self._cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
         self._image_dir = image_dir
-        self.goal_img_path = ""
+        self.goal_img_path = "/Users/adivganapathi/Documents/UC Berkeley/Current Projects/cloth-rendering/cloth_images/flat_goal_rgb.png"
 
     def get_new_images(self):
         """
@@ -33,8 +33,8 @@ class Descriptors(object):
         :return:
         :rtype:
         """
-        #self.img1_pil = Image.open(self.goal_img_path).convert('RGB').resize((640, 480))
-        self.img1_pil = Image.open(os.path.join(self._image_dir, random.choice(os.listdir(self._image_dir)))).convert('RGB').resize((640, 480))
+        self.img1_pil = Image.open(self.goal_img_path).convert('RGB').resize((640, 480))
+        #self.img1_pil = Image.open(os.path.join(self._image_dir, random.choice(os.listdir(self._image_dir)))).convert('RGB').resize((640, 480))
         self.img2_pil = Image.open(os.path.join(self._image_dir, random.choice(os.listdir(self._image_dir)))).convert('RGB').resize((640, 480))
 
     def compute_descriptors(self):
@@ -75,6 +75,7 @@ class Descriptors(object):
         self.get_new_images()
         self.compute_descriptors()
         best_match_uv = self.find_best_match(u, v)
+        return best_match_uv
 
     
     def knn(self, points, error_margin, k, inputs, model=None):

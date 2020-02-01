@@ -14,6 +14,7 @@ import bmesh
 
 #Adi: Descriptor related imports
 import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import sys
 
 '''Usage: blender -b -P cloth-blender.py'''
@@ -334,14 +335,16 @@ def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_he
     pixels = []
     for i in range(len(vertices)):
         v = vertices[i]
-        v_lyst = [v[0], v[1], v[2]]
+        #v_lyst = [v[0], v[1], v[2]]
         camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
         #pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
         #Adi: Pixel need to be converted to int for key
         pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
         #Adi: Going from pixel to vertex now
         flattened = pixel[0] * 480 + pixel[1] #Should this be 480 or 640?
-        mapping[flattened] = v_lyst
+        #Adi: Don't need to map it to the world coordinates, just the index.
+        #mapping[flattened] = v_lyst
+        mapping[str(flattened)] = i
         pixels.append([pixel])
     #mapping[frame] = pixels
     return mapping
@@ -396,7 +399,8 @@ def render_dataset(num_episodes, filename, num_annotations, texture_filepath='',
         for i in range(ep_len): #ep_len should be 10 actions, but right now it can only be one
             #Adi: Take an action on the cloth
             #r_index = sample(range(len(cloth.data.vertices)), 1)
-            action(cloth, v_index=0, frame_num=30*(i)) #Should be i+1 if we drop first
+            #action(cloth, v_index=0, frame_num=30*(i)) #Should be i+1 if we drop first
+            fold_action(cloth, frame_num=30*i)
             annot = render(30*(i+3)-1, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth, should be i+2 if we drop first
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(annot, outfile, sort_keys=True, indent=2)
@@ -416,6 +420,15 @@ def test(num_episodes=1):
         #action(cloth, v_index=0)
         fold_action(cloth)
 
+#def imitate_single_action(us_1, vs_1, us_2, vs_2, goal_img):
+
+#Adi: Should return closest vertex for grabbing corresponding to deprojected pixel (should eventually use knn)
+def pix2vertex(u, v, knots_info):
+   flattened_key = u * 480 + v #Adi: Again, should this be 480 or 640? Need to make sure we are flattening correctly
+   v_index = knots_info.get(flattened_key, knots_info[min(knots_info.keys(), key=lambda k: abs(k-flattened_key))]) 
+   return v_index
+   
+    
     
 if __name__ == '__main__':
     #Adi: So that we can import python files in the same directory
@@ -423,7 +436,7 @@ if __name__ == '__main__':
     if not dir in sys.path:
         sys.path.append(dir )
         print(sys.path)
-    from descriptors import main
+    from descriptors.main import Descriptors
     from descriptors.dense_correspondence_network import DenseCorrespondenceNetwork
     
 
@@ -438,8 +451,8 @@ if __name__ == '__main__':
     goal_img = cv2.imread(goal_img_path)
     #render_dataset_old(episodes, filename, num_annotations, color=green)
     #render_dataset_old(episodes, filename, num_annotations, texture_filepath=texture_filepath)
-    test()
-    #render_dataset(episodes, filename, num_annotations, color=green)
+    #test()
+    render_dataset(episodes, filename, num_annotations, color=green)
 
     #Adi: This is location of the models on nfs
     #base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
@@ -461,7 +474,20 @@ if __name__ == '__main__':
 
     descriptors = Descriptors(dcn, dataset_mean, dataset_std_dev, image_dir)
     print("starting correspondence finder")
-    #descriptors.run()
+    us_1 = 0
+    vs_1 = 0
+    us_2 = 240
+    vs_2 = 320
+
+    ##Adi: Running into some OpenMP issue when running the descriptors and the fold_action in the same script
+    ##Adi: Pass in the grab pixels from the source image and get best match in target image
+    best_match_uv_grab = descriptors.run(us_1, vs_1)
+    ##Adi: Pass in the release pixels from the source image and get best match in target image
+    best_match_uv_release = descriptors.run(us_2, vs_2)
+    print(best_match_uv)
+    #v_index_grab = pix2vertex(best_match_uv_grab[0], best_match_uv_grab[1], knots_info)   
+    #v_index_release = pix2vertex(best_match_uv_release[0], best_match_uv_release[1], knots_info)   
+    #fold_action(cloth, v_index_grab=v_index_grab, v_index_release=v_index_release)
 
     print("finished correspondence finder")
     cv2.destroyAllWindows()
