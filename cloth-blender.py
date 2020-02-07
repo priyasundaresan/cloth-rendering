@@ -58,6 +58,8 @@ def make_cloth():
     bpy.ops.object.editmode_toggle()
     bpy.ops.object.modifier_add(type='CLOTH')
     bpy.ops.object.modifier_add(type='SUBSURF')
+    #Thickness:
+    bpy.ops.object.modifier_add(type='SOLIDIFY')
     bpy.context.object.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
     bpy.context.object.modifiers["Cloth"].collision_settings.use_self_collision = True
 
