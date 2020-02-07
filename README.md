@@ -2,7 +2,7 @@
 
 ### Description
 * This repo provides a lightweight simulator for cloth using Blender 2.8. It is intended to provide a simulation environment for downstream robotics tasks with deformable objects (towel folding, blanket smoothing, curtain manipulation etc.)
-  * `rope-blender.py`: renders images of deformable cloth into directory `cloth-rendering/images` and dumps a JSON file with ground truth annotations into the same folder.
+  * `cloth-blender.py`: renders images of deformable cloth into directory `cloth-rendering/images` and dumps a JSON file with ground truth annotations into the same folder.
   * `vis.py`: visualizes annotations on rendered images and dumps them into `cloth-rendering/annotated`
   * `mask.py`: renders segmentation masks and dumps them into `cloth-rendering/image_masks.` 
   
