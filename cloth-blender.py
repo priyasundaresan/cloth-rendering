@@ -85,19 +85,22 @@ def generate_cloth_state(cloth):
         cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
 
     #Initial Pinning
-    #pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
-    #n = random.choice(range(1,4)) # Number of vertices to pin
-    #subsample = sample(range(len(cloth.data.vertices)), n)
-    #pinned_group.add(subsample, 0.99, 'ADD') #Adi: Adding with 0.99 weight so that we can remove pinned vertices after settling
-    #cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
+    pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
+    n = random.choice(range(1,4)) # Number of vertices to pin
+    subsample = sample(range(len(cloth.data.vertices)), n)
+    pinned_group.add(subsample, 0.99, 'ADD') #Adi: Adding with 0.99 weight so that we can remove pinned vertices after settling
+    cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
     #Adi: Can only assign to "Pinned" after "Pinned" is created
-    #cloth.modifiers["VertexWeightEdit"].vertex_group = "Pinned"
+    cloth.modifiers["VertexWeightEdit"].vertex_group = "Pinned"
 
 
 
     # Episode length = 30 frames
     bpy.context.scene.frame_start = 0 
-    bpy.context.scene.frame_end = 90 # Roughly when the cloth settles
+    #For actions
+    #bpy.context.scene.frame_end = 90 # Roughly when the cloth settles
+    #For dropping
+    bpy.context.scene.frame_end = 30 # Roughly when the cloth settles
     return cloth
 
 def action(cloth, v_index=0, frame_num=0):
@@ -319,35 +322,52 @@ def render_mask(filename, index):
             tree.nodes.remove(node)
     scene.use_nodes = False
 
-def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_height=480):
-    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
+def annotate(cloth, frame, mapping, num_annotations):
     scene = bpy.context.scene
+    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
     depsgraph = bpy.context.evaluated_depsgraph_get()
     cloth_deformed = cloth.evaluated_get(depsgraph)
-    vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[::len(list(cloth_deformed.data.vertices))//num_annotations]] 
-    scene.render.resolution_percentage = 100
-    render_scale = scene.render.resolution_percentage / 100
-    scene.render.resolution_x = render_width
-    scene.render.resolution_y = render_height
-    render_size = (
-            int(scene.render.resolution_x * render_scale),
-            int(scene.render.resolution_y * render_scale),
-            )
+    #vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[::len(list(cloth_deformed.data.vertices))//num_annotations]] 
+    vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[:num_annotations]] 
+    render_size = (scene.render.resolution_x, scene.render.resolution_y)
     pixels = []
     for i in range(len(vertices)):
-        #v = vertices[i]
-        #v_lyst = [v[0], v[1], v[2]]
+        v = vertices[i]
         camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
-        #Adi: Pixel need to be converted to int for key
         pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
-        #Adi: Going from pixel to vertex now
-        #flattened = pixel[0] * 480 + pixel[1] #Should this be 480 or 640?
-        #Adi: Don't need to map it to the world coordinates, just the index.
-        #mapping[flattened] = v_lyst
-        #mapping[str(flattened)] = i
         pixels.append([pixel])
     mapping[frame] = pixels
     return mapping
+
+#def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_height=480):
+#    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
+#    scene = bpy.context.scene
+#    depsgraph = bpy.context.evaluated_depsgraph_get()
+#    cloth_deformed = cloth.evaluated_get(depsgraph)
+#    vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[::len(list(cloth_deformed.data.vertices))//num_annotations]] 
+#    scene.render.resolution_percentage = 100
+#    render_scale = scene.render.resolution_percentage / 100
+#    scene.render.resolution_x = render_width
+#    scene.render.resolution_y = render_height
+#    render_size = (
+#            int(scene.render.resolution_x * render_scale),
+#            int(scene.render.resolution_y * render_scale),
+#            )
+#    pixels = []
+#    for i in range(len(vertices)):
+#        v = vertices[i]
+#        #v_lyst = [v[0], v[1], v[2]]
+#        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
+#        #Adi: Pixel need to be converted to int for key
+#        pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+#        #Adi: Going from pixel to vertex now
+#        #flattened = pixel[0] * 480 + pixel[1] #Should this be 480 or 640?
+#        #Adi: Don't need to map it to the world coordinates, just the index.
+#        #mapping[flattened] = v_lyst
+#        #mapping[str(flattened)] = i
+#        pixels.append([pixel])
+#    mapping[frame] = pixels
+#    return mapping
 
 #def knn(self, points, error_margin, k, inputs, model=None):
 #    if model is None:
@@ -374,7 +394,8 @@ def render_dataset_old(num_episodes, filename, num_annotations, texture_filepath
     for episode in range(num_episodes):
         reset_cloth(cloth) # Restores cloth to flat state
         cloth = generate_cloth_state(cloth) # Creates a new deformed state
-        annot = render(29, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
+        #annot = render(29, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
+        annot = render_old(filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(annot, outfile, sort_keys=True, indent=2)
 
@@ -482,7 +503,7 @@ if __name__ == '__main__':
     
 
     #texture_filepath = 'textures/cloth.jpg'
-    #texture_filepath = 'textures/qr.png'
+    texture_filepath = 'textures/actual.jpg'
     goal_img_path = 'cloth_images/flat_goal_rgb.png'
     green = (0,0.5,0.5,1)
     filename = "images/%06d_rgb.png"
@@ -491,29 +512,29 @@ if __name__ == '__main__':
 
     goal_img = cv2.imread(goal_img_path)
     #render_dataset_old(episodes, filename, num_annotations, color=green)
-    #render_dataset_old(episodes, filename, num_annotations, texture_filepath=texture_filepath)
+    render_dataset_old(episodes, filename, num_annotations, texture_filepath=texture_filepath)
     #test()
     #render_dataset(episodes, filename, num_annotations, color=green)
 
-    #Adi: This is location of the models on nfs
-    #base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
-    #Adi: This is location of the models on MacOS local
-    base_dir = '/Users/adivganapathi/Documents/UC Berkeley/Current Projects/dense_descriptor_models'
-    network_dir = 'tier1_oracle_1811_consecutive_3'
-    dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
-    dcn.eval()
-    image_dir = "./cloth_images"
-    #with open(image_dir + '/knots_info.json', 'r') as f:
-    #    knots_info = json.load(f)
-    #print(knots_info['0'])
+    ##Adi: This is location of the models on nfs
+    ##base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
+    ##Adi: This is location of the models on MacOS local
+    #base_dir = '/Users/adivganapathi/Documents/UC Berkeley/Current Projects/dense_descriptor_models'
+    #network_dir = 'tier1_oracle_1811_consecutive_3'
+    #dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
+    #dcn.eval()
+    #image_dir = "./cloth_images"
+    ##with open(image_dir + '/knots_info.json', 'r') as f:
+    ##    knots_info = json.load(f)
+    ##print(knots_info['0'])
 
 
-    #with open('../cfg/dataset_info.json', 'r') as f:
-    with open('./cfg/dataset_info.json', 'r') as f:
-        dataset_stats = json.load(f)
-    dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
+    ##with open('../cfg/dataset_info.json', 'r') as f:
+    #with open('./cfg/dataset_info.json', 'r') as f:
+    #    dataset_stats = json.load(f)
+    #dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
 
-    descriptors = Descriptors(dcn, dataset_mean, dataset_std_dev, image_dir)
+    #descriptors = Descriptors(dcn, dataset_mean, dataset_std_dev, image_dir)
 
-    #Adi: Imitate a single action
-    imitate_single_action(descriptors, episodes, filename, num_annotations, texture_filepath='', color=green, goal_img=goal_img)
+    ##Adi: Imitate a single action
+    #imitate_single_action(descriptors, episodes, filename, num_annotations, texture_filepath='', color=green, goal_img=goal_img)
