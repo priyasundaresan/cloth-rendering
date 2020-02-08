@@ -86,23 +86,23 @@ def generate_cloth_state(cloth):
     if 'Pinned' in cloth.vertex_groups:
         cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
 
-    #Initial Pinning
-    pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
-    n = random.choice(range(1,4)) # Number of vertices to pin
-    subsample = sample(range(len(cloth.data.vertices)), n)
-    pinned_group.add(subsample, 0.99, 'ADD') #Adi: Adding with 0.99 weight so that we can remove pinned vertices after settling
-    cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
-    #Adi: Can only assign to "Pinned" after "Pinned" is created
-    cloth.modifiers["VertexWeightEdit"].vertex_group = "Pinned"
+    ##Initial Pinning
+    #pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
+    #n = random.choice(range(1,4)) # Number of vertices to pin
+    #subsample = sample(range(len(cloth.data.vertices)), n)
+    #pinned_group.add(subsample, 0.99, 'ADD') #Adi: Adding with 0.99 weight so that we can remove pinned vertices after settling
+    #cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
+    ##Adi: Can only assign to "Pinned" after "Pinned" is created
+    #cloth.modifiers["VertexWeightEdit"].vertex_group = "Pinned"
 
 
 
     # Episode length = 30 frames
     bpy.context.scene.frame_start = 0 
     #For actions
-    #bpy.context.scene.frame_end = 90 # Roughly when the cloth settles
+    bpy.context.scene.frame_end = 90 # Roughly when the cloth settles
     #For dropping
-    bpy.context.scene.frame_end = 30 # Roughly when the cloth settles
+    #bpy.context.scene.frame_end = 30 # Roughly when the cloth settles
     return cloth
 
 def action(cloth, v_index=0, frame_num=0):
@@ -157,6 +157,10 @@ def fold_action(cloth, v_index_grab=0, v_index_release=624, frame_num=0):
     seq.append(v_index_grab)
     grab_pinned_group.add(seq, 0.99, 'ADD')
     cloth.modifiers["VertexWeightEdit"].vertex_group = "Grab"
+    
+    #Adi: Trying to leave it unpinned in the beginning
+    cloth.modifiers["VertexWeightEdit"].use_remove = True
+    cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
 
     bpy.ops.object.mode_set(mode = 'OBJECT')
     obj = bpy.context.active_object
@@ -178,6 +182,9 @@ def fold_action(cloth, v_index_grab=0, v_index_release=624, frame_num=0):
     bpy.ops.object.modifier_move_up(modifier="Hook-Empty")
 
     bpy.context.scene.frame_set(frame_num)
+    #Adi: Pick up (pin) the grab group at frame "frame_num" which is usually 30
+    cloth.modifiers["VertexWeightEdit"].use_remove = False
+
     hook.keyframe_insert(data_path='location')
 
     #bpy.context.scene.frame_set(frame_num+10)
@@ -324,14 +331,22 @@ def render_mask(filename, index):
             tree.nodes.remove(node)
     scene.use_nodes = False
 
-def annotate(cloth, frame, mapping, num_annotations):
+def annotate(cloth, frame, mapping, num_annotations, render_width=640, render_height=480):
     scene = bpy.context.scene
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
     depsgraph = bpy.context.evaluated_depsgraph_get()
     cloth_deformed = cloth.evaluated_get(depsgraph)
     #vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[::len(list(cloth_deformed.data.vertices))//num_annotations]] 
     vertices = [cloth_deformed.matrix_world @ v.co for v in list(cloth_deformed.data.vertices)[:num_annotations]] 
-    render_size = (scene.render.resolution_x, scene.render.resolution_y)
+    scene.render.resolution_percentage = 100
+    render_scale = scene.render.resolution_percentage / 100
+    scene.render.resolution_x = render_width
+    scene.render.resolution_y = render_height
+    render_size = (
+            int(scene.render.resolution_x * render_scale),
+            int(scene.render.resolution_y * render_scale),
+            )
+    #render_size = (scene.render.resolution_x, scene.render.resolution_y)
     pixels = []
     for i in range(len(vertices)):
         v = vertices[i]
@@ -488,7 +503,7 @@ def imitate_single_action(descriptors, num_episodes, filename, num_annotations, 
             #v_index_release = pix2vertex(best_match_uv_release[0], best_match_uv_release[1], cloth.data.vertices)   
             v_index_grab = 0   
             v_index_release = 624   
-            fold_action(cloth, v_index_grab=v_index_grab, v_index_release=v_index_release, frame_num=30*i)
+            fold_action(cloth, v_index_grab=v_index_grab, v_index_release=v_index_release, frame_num=30*(i+1)) #Adi: used to be i
             print("finished correspondence finder")
             cv2.destroyAllWindows()
             annot = render(30*(i+3)-1, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth, should be i+2 if we drop first
@@ -514,29 +529,29 @@ if __name__ == '__main__':
 
     goal_img = cv2.imread(goal_img_path)
     #render_dataset_old(episodes, filename, num_annotations, color=green)
-    render_dataset_old(episodes, filename, num_annotations, texture_filepath=texture_filepath)
+    #render_dataset_old(episodes, filename, num_annotations, texture_filepath=texture_filepath)
     #test()
     #render_dataset(episodes, filename, num_annotations, color=green)
 
-    ##Adi: This is location of the models on nfs
-    ##base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
-    ##Adi: This is location of the models on MacOS local
-    #base_dir = '/Users/adivganapathi/Documents/UC Berkeley/Current Projects/dense_descriptor_models'
-    #network_dir = 'tier1_oracle_1811_consecutive_3'
-    #dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
-    #dcn.eval()
-    #image_dir = "./cloth_images"
-    ##with open(image_dir + '/knots_info.json', 'r') as f:
-    ##    knots_info = json.load(f)
-    ##print(knots_info['0'])
+    #Adi: This is location of the models on nfs
+    #base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
+    #Adi: This is location of the models on MacOS local
+    base_dir = '/Users/adivganapathi/Documents/UC Berkeley/Current Projects/dense_descriptor_models'
+    network_dir = 'tier1_oracle_1811_consecutive_3'
+    dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
+    dcn.eval()
+    image_dir = "./cloth_images"
+    #with open(image_dir + '/knots_info.json', 'r') as f:
+    #    knots_info = json.load(f)
+    #print(knots_info['0'])
 
 
-    ##with open('../cfg/dataset_info.json', 'r') as f:
-    #with open('./cfg/dataset_info.json', 'r') as f:
-    #    dataset_stats = json.load(f)
-    #dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
+    #with open('../cfg/dataset_info.json', 'r') as f:
+    with open('./cfg/dataset_info.json', 'r') as f:
+        dataset_stats = json.load(f)
+    dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
 
-    #descriptors = Descriptors(dcn, dataset_mean, dataset_std_dev, image_dir)
+    descriptors = Descriptors(dcn, dataset_mean, dataset_std_dev, image_dir)
 
-    ##Adi: Imitate a single action
-    #imitate_single_action(descriptors, episodes, filename, num_annotations, texture_filepath='', color=green, goal_img=goal_img)
+    #Adi: Imitate a single action
+    imitate_single_action(descriptors, episodes, filename, num_annotations, texture_filepath='', color=green, goal_img=goal_img)
