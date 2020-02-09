@@ -38,6 +38,7 @@ All in Python3:
 * Add the following line to your .bashrc: 
   * `alias blender="/path/to/blender/blender.app/Contents/MacOS/blender"` replacing the path to blender.app with your downloaded version
 * `cd` into the following directory: `/path/to/blender/blender.app/Contents/Resources/2.80/python/bin`
+* Install any dependencies with './python3.7m pip install X'
 
 ### Rendering Usage
 * Off-screen rendering: run `blender -b -P cloth-blender.py` (`-b` signals that the process will run in the background (doesn't launch the Blender app), `-P` signals that you're running a Python script)
