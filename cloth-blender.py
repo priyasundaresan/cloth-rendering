@@ -204,6 +204,15 @@ def fold_action(cloth, v_index_grab=0, v_index_release=624, frame_num=0):
     cloth.modifiers["VertexWeightEdit"].use_remove = True
     cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
     hook.keyframe_insert(data_path='location')
+
+    #Adi: Let's try to export the obj here
+    blend_file_path = bpy.data.filepath
+    directory = os.path.dirname(blend_file_path)
+    target_file = os.path.join(directory, 'myfile.obj')
+
+    bpy.ops.export_scene.obj(filepath=target_file, check_existing=True, axis_forward='-Z', axis_up='Y', filter_glob="*.obj;*.mtl", use_selection=False, use_animation=False, use_mesh_modifiers=True, use_edges=True, use_smooth_groups=False, use_smooth_groups_bitflags=False, use_normals=True, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=False, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1, path_mode='AUTO')
+
+
     
 
     
