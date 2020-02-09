@@ -206,11 +206,11 @@ def fold_action(cloth, v_index_grab=0, v_index_release=624, frame_num=0):
     hook.keyframe_insert(data_path='location')
 
     #Adi: Let's try to export the obj here
-    blend_file_path = bpy.data.filepath
-    directory = os.path.dirname(blend_file_path)
-    target_file = os.path.join(directory, 'myfile.obj')
+    #blend_file_path = bpy.data.filepath
+    #directory = os.path.dirname(blend_file_path)
+    #target_file = os.path.join(directory, 'myfile.obj')
 
-    bpy.ops.export_scene.obj(filepath=target_file, check_existing=True, axis_forward='-Z', axis_up='Y', filter_glob="*.obj;*.mtl", use_selection=False, use_animation=False, use_mesh_modifiers=True, use_edges=True, use_smooth_groups=False, use_smooth_groups_bitflags=False, use_normals=True, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=False, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1, path_mode='AUTO')
+    #bpy.ops.export_scene.obj(filepath=target_file, check_existing=True, axis_forward='-Z', axis_up='Y', filter_glob="*.obj;*.mtl", use_selection=False, use_animation=False, use_mesh_modifiers=True, use_edges=True, use_smooth_groups=False, use_smooth_groups_bitflags=False, use_normals=True, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=False, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1, path_mode='AUTO')
 
 
     
@@ -543,9 +543,9 @@ if __name__ == '__main__':
     #render_dataset(episodes, filename, num_annotations, color=green)
 
     #Adi: This is location of the models on nfs
-    #base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
+    base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
     #Adi: This is location of the models on MacOS local
-    base_dir = '/Users/adivganapathi/Documents/UC Berkeley/Current Projects/dense_descriptor_models'
+    #base_dir = '/Users/adivganapathi/Documents/UC Berkeley/Current Projects/dense_descriptor_models'
     network_dir = 'tier1_oracle_1811_consecutive_3'
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
     dcn.eval()

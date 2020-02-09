@@ -10,7 +10,7 @@ import copy
 from PIL import Image
 from descriptors.dense_correspondence_network import DenseCorrespondenceNetwork
 from descriptors.find_correspondences import CorrespondenceFinder 
-from sklearn.neighbors import NearestNeighbors
+#from sklearn.neighbors import NearestNeighbors
 from itertools import product
 
 COLOR_RED = np.array([0, 0, 255])
@@ -25,7 +25,8 @@ class Descriptors(object):
     def __init__(self, dcn, dataset_mean, dataset_std_dev, image_dir):
         self._cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
         self._image_dir = image_dir
-        self.goal_img_path = "/Users/adivganapathi/Documents/UC Berkeley/Current Projects/cloth-rendering/cloth_images/flat_goal_rgb.png"
+        #self.goal_img_path = "/Users/adivganapathi/Documents/UC Berkeley/Current Projects/cloth-rendering/cloth_images/flat_goal_rgb.png"
+        self.goal_img_path = "/home/davinci/adi/cloth-rendering/cloth_images/flat_goal_rgb.png"
 
     def get_new_images(self):
         """
