@@ -25,8 +25,8 @@ class Descriptors(object):
     def __init__(self, dcn, dataset_mean, dataset_std_dev, image_dir):
         self._cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
         self._image_dir = image_dir
-        #self.goal_img_path = "/Users/adivganapathi/Documents/UC Berkeley/Current Projects/cloth-rendering/cloth_images/flat_goal_rgb.png"
-        self.goal_img_path = "/home/davinci/adi/cloth-rendering/cloth_images/flat_goal_rgb.png"
+        self.goal_img_path = "/Users/adivganapathi/Documents/UC Berkeley/Current Projects/cloth-rendering/cloth_images/flat_goal_rgb.png"
+        #self.goal_img_path = "/home/davinci/adi/cloth-rendering/cloth_images/flat_goal_rgb.png"
 
     def get_new_images(self):
         """

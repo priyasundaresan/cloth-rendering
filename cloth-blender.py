@@ -45,7 +45,7 @@ def make_table():
 
     #Adi: Increase the friction of the plane
     #bpy.context.object.collision.friction_factor = 4
-    bpy.context.object.collision.cloth_friction = 20
+    bpy.context.object.collision.cloth_friction = 30 #Adi: Used to be 20
     return bpy.context.object
 
 def make_cloth():
@@ -63,7 +63,41 @@ def make_cloth():
     bpy.context.object.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
     bpy.context.object.modifiers["Cloth"].collision_settings.use_self_collision = True
 
-    #Adi: Add Vertex Weight Edit modifier to change pinned vertices over time
+    #Adi: Add Vertex Weight Edit modifier to change weight of first grab vertex over time
+    bpy.ops.object.modifier_add(type='VERTEX_WEIGHT_EDIT')
+    bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
+    bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
+    bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
+    bpy.context.object.modifiers["VertexWeightEdit"].remove_threshold = 1
+    bpy.context.object.modifiers["VertexWeightEdit"].use_remove = False
+
+    #Adi: Add Vertex Weight Edit modifier to change weight of second grab vertex over time
+    #bpy.ops.object.modifier_add(type='VERTEX_WEIGHT_EDIT')
+    #bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit.001")
+    #bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit.001")
+    #bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit.001")
+    #bpy.context.object.modifiers["VertexWeightEdit.001"].remove_threshold = 1
+    #bpy.context.object.modifiers["VertexWeightEdit.001"].use_remove = True
+
+    return bpy.context.object
+
+
+def make_tshirt():
+    #Adi: Import the tshirt obj here
+    blend_file_path = bpy.data.filepath
+    directory = os.path.dirname(blend_file_path)
+    target_file = os.path.join(directory, 'T-Shirt.obj')
+    tshirt = bpy.ops.import_scene.obj(filepath=target_file)
+    bpy.data.objects['T-Shirt_Mesh'].select_set(True)
+    bpy.context.view_layer.objects.active = bpy.data.objects['T-Shirt_Mesh'] 
+    bpy.ops.object.modifier_add(type='COLLISION')
+    bpy.ops.object.modifier_add(type='CLOTH')
+    bpy.ops.object.modifier_add(type='SUBSURF')
+    #Thickness:
+    bpy.ops.object.modifier_add(type='SOLIDIFY')
+    bpy.context.object.modifiers["Cloth"].collision_settings.use_self_collision = True
+
+    #Adi: Add Vertex Weight Edit modifier to change weight of first grab vertex over time
     bpy.ops.object.modifier_add(type='VERTEX_WEIGHT_EDIT')
     bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
     bpy.ops.object.modifier_move_up(modifier="VertexWeightEdit")
@@ -81,7 +115,7 @@ def generate_cloth_state(cloth):
     dx = np.random.uniform(0,0.7,1)*random.choice((-1,1))
     dy = np.random.uniform(0,0.7,1)*random.choice((-1,1))
     dz = np.random.uniform(0.4,0.8,1)
-    cloth.location = (dx,dy,dz)
+    cloth.location = (dx,dy,0.2)
     cloth.rotation_euler = (0, 0, random.uniform(0, np.pi)) # fixed z, rotate only about x/y axis slightly
     if 'Pinned' in cloth.vertex_groups:
         cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
@@ -99,8 +133,10 @@ def generate_cloth_state(cloth):
 
     # Episode length = 30 frames
     bpy.context.scene.frame_start = 0 
+    #For multi-actions!
+    bpy.context.scene.frame_end = 150 # Roughly when the cloth settles
     #For actions
-    bpy.context.scene.frame_end = 90 # Roughly when the cloth settles
+    #bpy.context.scene.frame_end = 90 # Roughly when the cloth settles
     #For dropping
     #bpy.context.scene.frame_end = 30 # Roughly when the cloth settles
     return cloth
@@ -147,21 +183,37 @@ def action(cloth, v_index=0, frame_num=0):
     cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
     hook.keyframe_insert(data_path='location')
 
-def fold_action(cloth, v_index_grab=0, v_index_release=624, frame_num=0):
+#Adi: v_index_release used to be 624
+def fold_action(cloth, v_index_grab=0, v_index_release=250, frame_num=0):
     #v_index is the index of the vertex you want to grab
+    v_index_grab_2 = 728
+
+    #Adi: The AnimAll addon allows us to animate vertex pin groups for the cloth
+    bpy.data.window_managers["WinMan"].animall_properties.key_vgroups = True
 
     #Grab Pinning
     grab_pinned_group = bpy.context.object.vertex_groups.new(name='Grab')
-    n = 1 # Number of vertices to pin
     seq = []
     seq.append(v_index_grab)
+    #Adi: Also add the new vertex!
+    seq.append(v_index_grab_2) #Adi: Can I maybe add this with a different weight? That could be cool
     grab_pinned_group.add(seq, 0.99, 'ADD')
     cloth.modifiers["VertexWeightEdit"].vertex_group = "Grab"
+
+    #Grab Pinning Two
+    #bgrab_pinned_group = bpy.context.object.vertex_groups.new(name='bGrab')
+    #seq = []
+    #seq.append(v_index_grab_2)
+    #bgrab_pinned_group.add(seq, 0.99, 'ADD')
+    #cloth.modifiers["VertexWeightEdit.001"].vertex_group = "bGrab"
     
     #Adi: Trying to leave it unpinned in the beginning
     cloth.modifiers["VertexWeightEdit"].use_remove = True
+    #cloth.modifiers["VertexWeightEdit.001"].use_remove = True
     cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
+    #cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit.001"].use_remove')
 
+    #Adi: Adding a hook to the first grab vertex
     bpy.ops.object.mode_set(mode = 'OBJECT')
     obj = bpy.context.active_object
     bpy.ops.object.mode_set(mode = 'EDIT') 
@@ -171,26 +223,44 @@ def fold_action(cloth, v_index_grab=0, v_index_release=624, frame_num=0):
     obj.data.vertices[v_index_grab].select = True
     bpy.ops.object.mode_set(mode = 'EDIT')
     bpy.ops.object.hook_add_newob()
+    bpy.ops.object.mode_set(mode = 'OBJECT')
 
+    #Adi: Adding a hook to the second grab vertex
+    obj = bpy.context.active_object
+    bpy.ops.object.mode_set(mode = 'EDIT') 
+    bpy.ops.mesh.select_mode(type="VERT")
+    bpy.ops.mesh.select_all(action = 'DESELECT')
+    bpy.ops.object.mode_set(mode = 'OBJECT')
+    obj.data.vertices[v_index_grab_2].select = True
+    bpy.ops.object.mode_set(mode = 'EDIT')
+    bpy.ops.object.hook_add_newob()
     bpy.ops.object.mode_set(mode = 'OBJECT')
 
     hook = bpy.data.objects['Empty']
+    hook2 = bpy.data.objects['Empty.001']
 
 
     cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Grab'
     bpy.ops.object.modifier_move_up(modifier="Hook-Empty")
     bpy.ops.object.modifier_move_up(modifier="Hook-Empty")
+    bpy.ops.object.modifier_move_up(modifier="Hook-Empty.001")
+    bpy.ops.object.modifier_move_up(modifier="Hook-Empty.001")
 
     bpy.context.scene.frame_set(frame_num)
+    #Adi: First AnimAll ('Grab' group should only contain vertex with index 0)
+    bpy.ops.anim.insert_keyframe_animall()
     #Adi: Pick up (pin) the grab group at frame "frame_num" which is usually 30
     cloth.modifiers["VertexWeightEdit"].use_remove = False
 
+    #Adi: This is so that the hook doesn't start moving until frame 30
     hook.keyframe_insert(data_path='location')
-
-    #bpy.context.scene.frame_set(frame_num+10)
+    hook2.keyframe_insert(data_path='location')
+    #Adi: We pick up the vertex at frame 30
     cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
-    bpy.context.scene.frame_set(60)
+    #cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit.001"].use_remove')
 
+    #Adi: By frame 60, all below should have occured (hook moves to new location with vertex by frame 60 and releases vertex at frame 60)
+    bpy.context.scene.frame_set(60)
     vertices = [cloth.matrix_world @ v.co for v in list(cloth.data.vertices)] 
     v_grab = vertices[v_index_grab]
     v_release = vertices[v_index_release]
@@ -198,21 +268,50 @@ def fold_action(cloth, v_index_grab=0, v_index_release=624, frame_num=0):
     dy = v_release[1] - v_grab[1]
     dz = v_release[2] - v_grab[2]
     
-    
+    bpy.data.objects['Empty'].select_set(True) #Adi: Make sure we are moving first hook
+    bpy.data.objects['Empty.001'].select_set(False) #Adi: Make sure we are NOT moving second hook
     bpy.ops.transform.translate(value=(dx, dy, dz), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, release_confirm=True)
     
     cloth.modifiers["VertexWeightEdit"].use_remove = True
     cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
+    #cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit.001"].use_remove')
     hook.keyframe_insert(data_path='location')
-
-    #Adi: Let's try to export the obj here
-    #blend_file_path = bpy.data.filepath
-    #directory = os.path.dirname(blend_file_path)
-    #target_file = os.path.join(directory, 'myfile.obj')
-
-    #bpy.ops.export_scene.obj(filepath=target_file, check_existing=True, axis_forward='-Z', axis_up='Y', filter_glob="*.obj;*.mtl", use_selection=False, use_animation=False, use_mesh_modifiers=True, use_edges=True, use_smooth_groups=False, use_smooth_groups_bitflags=False, use_normals=True, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=False, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1, path_mode='AUTO')
+    hook2.keyframe_insert(data_path='location')
 
 
+    #Adi: Trying some second action stuff here
+    bpy.context.scene.frame_set(90)
+    cloth.modifiers["VertexWeightEdit"].use_remove = False
+    bpy.data.objects['Empty.001'].select_set(True) #Adi: Make sure we are moving first hook
+    bpy.data.objects['Empty'].select_set(False) #Adi: Make sure we are NOT moving second hook
+    cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
+    hook.keyframe_insert(data_path='location')
+    hook2.keyframe_insert(data_path='location')
+    #cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit.001"].use_remove')
+    #Adi: Change the contents of 'Grab' group so that we have a different grab vertex index (now 200)
+    #cloth.vertex_groups["Grab"].remove([v_index_grab])
+    #seq = []
+    #seq.append(200)
+    #grab_pinned_group.add(seq, 0.99, 'ADD')
+    #bpy.ops.anim.insert_keyframe_animall()
+
+    bpy.context.scene.frame_set(120)
+    v_grab = vertices[v_index_grab_2]
+    v_release = vertices[100]
+    dx = v_release[0] - v_grab[0]
+    dy = v_release[1] - v_grab[1]
+    dz = v_release[2] - v_grab[2]
+    bpy.ops.transform.translate(value=(dx, dy, dz), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, release_confirm=True)
+    cloth.modifiers["VertexWeightEdit"].use_remove = True
+    cloth.keyframe_insert(data_path='modifiers["VertexWeightEdit"].use_remove')
+    hook.keyframe_insert(data_path='location')
+    hook2.keyframe_insert(data_path='location')
+
+
+    blend_file_path = bpy.data.filepath
+    directory = os.path.dirname(blend_file_path)
+    target_file = os.path.join(directory, 'deformed_cloth.obj')
+    return target_file
     
 
     
@@ -484,7 +583,9 @@ def imitate_single_action(descriptors, num_episodes, filename, num_annotations, 
     # Make the camera, lights, table, and cloth only ONCE
     add_camera_light()
     table = make_table()
-    cloth = make_cloth()
+    #Adi: Trying to make a tshirt instead
+    #cloth = make_cloth()
+    cloth = make_tshirt()
     if texture_filepath != '':
         engine = 'BLENDER_EEVEE'
         pattern(cloth, texture_filepath)
@@ -512,10 +613,11 @@ def imitate_single_action(descriptors, num_episodes, filename, num_annotations, 
             #v_index_release = pix2vertex(best_match_uv_release[0], best_match_uv_release[1], cloth.data.vertices)   
             v_index_grab = 0   
             v_index_release = 624   
-            fold_action(cloth, v_index_grab=v_index_grab, v_index_release=v_index_release, frame_num=30*(i+1)) #Adi: used to be i
+            target_file = fold_action(cloth, v_index_grab=v_index_grab, v_index_release=v_index_release, frame_num=30*(i+1)) #Adi: used to be i
             print("finished correspondence finder")
             cv2.destroyAllWindows()
             annot = render(30*(i+3)-1, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth, should be i+2 if we drop first
+            #reset_cloth_new(target_file)
 
     
 if __name__ == '__main__':
@@ -543,9 +645,9 @@ if __name__ == '__main__':
     #render_dataset(episodes, filename, num_annotations, color=green)
 
     #Adi: This is location of the models on nfs
-    base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
+    #base_dir = '/nfs/diskstation/adi/models/dense_descriptor_models'
     #Adi: This is location of the models on MacOS local
-    #base_dir = '/Users/adivganapathi/Documents/UC Berkeley/Current Projects/dense_descriptor_models'
+    base_dir = '/Users/adivganapathi/Documents/UC Berkeley/Current Projects/dense_descriptor_models'
     network_dir = 'tier1_oracle_1811_consecutive_3'
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
     dcn.eval()
@@ -564,3 +666,8 @@ if __name__ == '__main__':
 
     #Adi: Imitate a single action
     imitate_single_action(descriptors, episodes, filename, num_annotations, texture_filepath='', color=green, goal_img=goal_img)
+    
+    #blend_file_path = bpy.data.filepath
+    #directory = os.path.dirname(blend_file_path)
+    #target_file = os.path.join(directory, 'T-Shirt.obj')
+    #tshirt = bpy.ops.import_scene.obj(filepath=target_file)
