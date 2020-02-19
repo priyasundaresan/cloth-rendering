@@ -8,13 +8,11 @@ import colorsys
 
 def show_knots(idx, knots_info, save=True):
     image_filename = "{0:06d}_rgb.png".format(idx)
-    #image_filename = "{0:06d}.jpg".format(idx)
-    #img = cv2.imread('images/{}'.format(image_filename)) * 0
     img = cv2.imread('images/{}'.format(image_filename))
     pixels = knots_info[str(idx)]
     pixels = [i[0] for i in pixels]
     n = int(len(pixels)**0.5)
-    print(n)
+    vis = img.copy()
     for i, (u, v) in enumerate(pixels):
         (r, g, b) = colorsys.hsv_to_rgb(float(i)/len(pixels), 1.0, 1.0)
         R, G, B = int(255 * r), int(255 * g), int(255 * b)
@@ -23,16 +21,15 @@ def show_knots(idx, knots_info, save=True):
         u1,v1 = pixels[row_symm*n+col]
         u2,v2 = pixels[row_symm*n+col_symm]
         u3,v3 = pixels[row*n+col_symm]
-        vis = img.copy()
-        cv2.circle(vis,(int(u), int(v)), 3, (R, G, B), -1)
+        cv2.circle(vis,(int(u), int(v)), 3, (255, 255, 255), -1)
         cv2.circle(vis,(int(u1), int(v1)), 3, (R, G, B), -1)
         cv2.circle(vis,(int(u2), int(v2)), 3, (R, G, B), -1)
         cv2.circle(vis,(int(u3), int(v3)), 3, (R, G, B), -1)
-        cv2.imshow("img", vis)
+        cv2.imshow("vis", vis)
         cv2.waitKey(0)
     if save:
     	annotated_filename = "{0:06d}_annotated.png".format(idx)
-    	cv2.imwrite('./annotated/{}'.format(annotated_filename), img)
+    	cv2.imwrite('./annotated/{}'.format(annotated_filename), vis)
 
 
 if __name__ == '__main__':
@@ -48,6 +45,6 @@ if __name__ == '__main__':
     with open("images/knots_info.json", "r") as stream:
     	knots_info = json.load(stream)
     print("loaded knots info")
-    for i in range(1,args.num):
+    for i in range(args.num):
         print(i)
         show_knots(i, knots_info)

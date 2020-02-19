@@ -78,27 +78,24 @@ def make_cloth(subdivisions):
     bpy.ops.object.modifier_add(type='SUBSURF')
     cloth.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
     cloth.modifiers["Subdivision"].show_on_cage = True
+    bpy.ops.object.modifier_add(type='SOLIDIFY')
     return cloth
+
+def unpin_test(cloth):
+    scene = bpy.context.scene
+    render_path = set_render_settings('BLENDER_WORKBENCH', 'actions', '%06d_rgb.png')
+    for frame in range(scene.frame_end):
+        if frame == scene.frame_end//2:
+            unpin(cloth)
+        if frame%3==0:
+            index = frame//3 
+            scene.render.filepath = render_path % index
+            bpy.ops.render.render(write_still=True)
+        scene.frame_set(frame)
 
 def render_action_sequence(cloth, v_idx, actions):
     scene = bpy.context.scene
     render_path = set_render_settings('BLENDER_WORKBENCH', 'actions', '%06d_rgb.png')
-
-    for frame in range(0, 30):
-        if frame%3==0:
-            index = frame//3 
-            scene.render.filepath = render_path % index
-            bpy.ops.render.render(write_still=True)
-        scene.frame_set(frame)
-
-    unpin(cloth)
-
-    for frame in range(30, 75):
-        if frame%3==0:
-            index = frame//3 
-            scene.render.filepath = render_path % index
-            bpy.ops.render.render(write_still=True)
-        scene.frame_set(frame)
 
     cloth_deformed = update(cloth)
     pick = cloth_deformed.matrix_world @ cloth_deformed.data.vertices[v_idx].co
@@ -125,26 +122,27 @@ def render_action_sequence(cloth, v_idx, actions):
     bpy.ops.object.select_all(action='DESELECT')
     pinned_group = cloth.vertex_groups['Pinned']
     pinned_group.add([v_idx], 1.0, 'ADD')
-    cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
 
+    cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
     bpy.context.view_layer.objects.active = arma
     bpy.ops.object.mode_set(mode='POSE')
     bone=bpy.context.object.pose.bones['Bone']
 
-    bone.keyframe_insert(data_path='location',frame=frame)
-    frame_offset = (scene.frame_end - 75)//len(actions)
-    for i, (dx,dy,dz) in enumerate(actions):
-        bone.location[0] += dx
-        bone.location[1] += dy
-        bone.location[2] += dz
-        bone.keyframe_insert(data_path='location',frame=frame + i*frame_offset)
-
-    for frame in range(75, scene.frame_end):
-        if frame%3==0:
-            index = frame//3 
-            scene.render.filepath = render_path % index
-            bpy.ops.render.render(write_still=True)
-        scene.frame_set(frame)
+    #bone.keyframe_insert(data_path='location',frame=75)
+    #frame_offset = (scene.frame_end - 75)//len(actions)
+    #
+    #for frame in range(75, scene.frame_end):
+    #    if (frame-75)%frame_offset==0 and frame>75:
+    #        dx,dy,dz = actions.pop(0)
+    #        bone.location[0] += dx
+    #        bone.location[1] += dy
+    #        bone.location[2] += dz
+    #        bone.keyframe_insert(data_path='location',frame=frame)
+    #    if frame%3==0:
+    #        index = frame//3 
+    #        scene.render.filepath = render_path % index
+    #        bpy.ops.render.render(write_still=True)
+    #    scene.frame_set(frame)
 
 def unpin(cloth):
     if 'Pinned' in cloth.vertex_groups:
@@ -162,7 +160,7 @@ def generate_cloth_state(cloth, subdivisions):
     cloth.location = (dx,dy,dz)
     cloth.rotation_euler = (0, 0, random.uniform(0, np.pi)) # fixed z, rotate only about x/y axis slightly
     pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
-    n = random.choice(range(1,4)) # Number of vertices to pin
+    n = random.choice(range(1,3)) # Number of vertices to pin
     subsample = sample(range(len(cloth.data.vertices)), n)
     pinned_group.add(subsample, 1.0, 'ADD')
     cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
@@ -215,7 +213,7 @@ def render(folder, filename, engine, episode, cloth, annotations=None, num_annot
         # Render 10 images per episode (episode is really 30 frames)
         if frame%3==0:
             index = ((30 - scene.frame_start)*episode + frame)//3 
-            #render_mask("image_masks/%06d_visible_mask.png", index)
+            render_mask("image_masks/%06d_visible_mask.png", index)
             scene.render.filepath = render_path % index
             bpy.ops.render.render(write_still=True)
             if annotations is not None:
@@ -274,6 +272,11 @@ def set_render_settings(engine, folder, filename, render_width=640, render_heigh
         scene.render.image_settings.file_format='PNG'
     elif engine == "BLENDER_EEVEE":
         scene.eevee.taa_samples = 1
+        #scene.view_settings.view_transform = 'Raw'
+        #scene.view_settings.view_transform = 'XYZ'
+        scene.view_settings.view_transform = 'Standard'
+        #scene.view_settings.view_transform = 'Filmic'
+        #scene.view_settings.view_transform = 'Filmic Log'
         scene.eevee.taa_render_samples = 1
     scene.render.resolution_percentage = 100
     render_scale = scene.render.resolution_percentage / 100
@@ -315,6 +318,7 @@ def render_dataset(num_episodes, folder, filename, num_annotations, subdivisions
         colorize(cloth, color)
     annot = {}
     for episode in range(num_episodes):
+        print("EPISODE", episode)
         reset_cloth(cloth) # Restores cloth to flat state
         cloth = generate_cloth_state(cloth, subdivisions) # Creates a new deformed state
         annot = render(folder, filename, engine, episode, cloth, annotations=annot, num_annotations=num_annotations) # Render, save ground truth
@@ -322,21 +326,24 @@ def render_dataset(num_episodes, folder, filename, num_annotations, subdivisions
         json.dump(annot, outfile, sort_keys=True, indent=2)
     
 if __name__ == '__main__':
-    texture_filepath = 'textures/asymm.jpg'
+    #texture_filepath = 'textures/cloth.jpg'
+    texture_filepath = 'textures/qr.png'
+    #texture_filepath = 'textures/blue.jpg'
     green = (0,0.5,0.5,1)
     folder = "images"
     filename = "%06d_rgb.png"
-    episodes = 2 # Notes each episode has 10 rendered frames 
+    episodes = 1 # Notes each episode has 10 rendered frames 
     subdivisions = 25
     num_annotations = subdivisions**2 # Pixelwise annotations per image
     #render_dataset(episodes, folder, filename, num_annotations, subdivisions, color=green)
-    #render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
+    render_dataset(episodes, folder, filename, num_annotations, subdivisions, texture_filepath=texture_filepath)
 
-    clear_scene()
-    add_camera_light()
-    table = make_table()
-    cloth = make_cloth(subdivisions)
-    colorize(cloth, green)
-    cloth = generate_cloth_state(cloth, subdivisions) # Creates a new deformed state
-    actions = [(0,0,0.5), (0.5,-0.5,0), (0,0,1.0), (-0.5,0.5,0)]
-    render_action_sequence(cloth, 0, actions)
+    #clear_scene()
+    #add_camera_light()
+    #table = make_table()
+    #cloth = make_cloth(subdivisions)
+    #colorize(cloth, green)
+    #cloth = generate_cloth_state(cloth, subdivisions) # Creates a new deformed state
+    #actions = [(0,0,1)]
+    #unpin_test(cloth)
+    #render_action_sequence(cloth, 0, actions)
