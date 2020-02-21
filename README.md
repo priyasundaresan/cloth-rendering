@@ -2,7 +2,7 @@
 
 ### Description
 * This repo provides a lightweight simulator for cloth using Blender 2.8. It is intended to provide a simulation environment for downstream robotics tasks with deformable objects (towel folding, blanket smoothing, curtain manipulation etc.)
-  * `rope-blender.py`: renders images of deformable cloth into directory `cloth-rendering/images` and dumps a JSON file with ground truth annotations into the same folder.
+  * `cloth-blender.py`: renders images of deformable cloth into directory `cloth-rendering/images` and dumps a JSON file with ground truth annotations into the same folder.
   * `vis.py`: visualizes annotations on rendered images and dumps them into `cloth-rendering/annotated`
   * `mask.py`: renders segmentation masks and dumps them into `cloth-rendering/image_masks.` 
   
@@ -38,7 +38,7 @@ All in Python3:
 * Add the following line to your .bashrc: 
   * `alias blender="/path/to/blender/blender.app/Contents/MacOS/blender"` replacing the path to blender.app with your downloaded version
 * `cd` into the following directory: `/path/to/blender/blender.app/Contents/Resources/2.80/python/bin`
-* To install dependencies, optionally make a python3 virtualenv, navigate into `cloth-rendering` and run `pip3 install -r requirements.txt`
+* Install any dependencies with './python3.7m pip install X'
 
 ### Rendering Usage
 * Off-screen rendering: run `blender -b -P cloth-blender.py` (`-b` signals that the process will run in the background (doesn't launch the Blender app), `-P` signals that you're running a Python script)
