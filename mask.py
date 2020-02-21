@@ -6,7 +6,7 @@ import argparse
 def mask(image_filename, directory, texture):
     ''' Produces a mask of a depth image by thresholding '''
     img = cv2.imread('./%s/%s'%(directory, image_filename)).copy()
-    mask = img//255
+    mask = img/255.
     mask_filename = image_filename.replace('visible_mask', 'mask')
     visible_mask_filename = image_filename.replace('rgb', 'visible_mask')
     cv2.imwrite('image_masks/{}'.format(mask_filename), mask)
