@@ -1,6 +1,7 @@
 import bpy
 import os
 import json
+import time
 import bpy, bpy_extras
 from math import *
 from mathutils import *
@@ -31,6 +32,7 @@ def clear_scene():
 
 def make_table():
     # Generate table surface
+    bpy.ops.mesh.primitive_plane_add(size=3, location=(0,0,-1))
     bpy.ops.mesh.primitive_plane_add(size=3, location=(0,0,0))
     bpy.ops.object.modifier_add(type='COLLISION')
     return bpy.context.object
@@ -47,7 +49,8 @@ def make_cloth():
     bpy.ops.object.modifier_add(type='SUBSURF')
     bpy.context.object.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
     bpy.ops.object.modifier_add(type='SOLIDIFY')
-    bpy.context.object.modifiers["Solidify"].thickness = 0.2
+    #bpy.context.object.modifiers["Solidify"].thickness = 0.075
+    bpy.context.object.modifiers["Solidify"].thickness = 0.1
     bpy.context.object.modifiers["Cloth"].collision_settings.use_self_collision = True
     return bpy.context.object
 
@@ -148,8 +151,6 @@ def render_mask(filename, index):
     scene.use_nodes = True
     tree = bpy.context.scene.node_tree
     links = tree.links
-
-
     render_node = tree.nodes["Render Layers"]
     norm_node = tree.nodes.new(type="CompositorNodeNormalize")
     inv_node = tree.nodes.new(type="CompositorNodeInvert")
@@ -162,20 +163,6 @@ def render_mask(filename, index):
     links.new(math_node.outputs[0], composite.inputs["Image"])
     scene.render.filepath = filename % index
     bpy.ops.render.render(write_still=True)
-
-
-    #render_node = tree.nodes["Render Layers"]
-    #norm_node = tree.nodes.new(type="CompositorNodeNormalize")
-    #inv_node = tree.nodes.new(type="CompositorNodeInvert")
-    #math_node = tree.nodes.new(type="CompositorNodeMath")
-    #math_node.operation = 'CEIL' # Threshold the depth image
-    #composite = tree.nodes.new(type = "CompositorNodeComposite")
-    #links.new(render_node.outputs["Depth"], inv_node.inputs["Color"])
-    #links.new(inv_node.outputs[0], norm_node.inputs[0])
-    #links.new(norm_node.outputs[0], math_node.inputs[0])
-    #links.new(math_node.outputs[0], composite.inputs["Image"])
-    #scene.render.filepath = filename % index
-    #bpy.ops.render.render(write_still=True)
     # Clean up 
     scene.render.engine = saved
     for node in tree.nodes:
@@ -247,4 +234,6 @@ if __name__ == '__main__':
     episodes = 1 # Note each episode has 10 rendered frames 
     num_annotations = 200 # Pixelwise annotations per image
     #render_dataset(episodes, filename, num_annotations, color=green)
+    start = time.time()
     render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
+    print("Render time:", time.time() - start)
