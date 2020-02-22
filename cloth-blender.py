@@ -69,7 +69,7 @@ def generate_cloth_state(cloth):
     dy = np.random.uniform(0,0.2,1)*random.choice((-1,1))
     dz = np.random.uniform(0.6,0.8,1)
     cloth.location = (dx,dy,dz)
-    cloth.rotation_euler = (0, 0, random.uniform(0, np.pi/4)) # fixed z, rotate only about x/y axis slightly
+    cloth.rotation_euler = (0, 0, random.uniform(-np.pi/4, np.pi/4)) # fixed z, rotate only about x/y axis slightly
     if 'Pinned' in cloth.vertex_groups:
         cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
     pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
@@ -218,7 +218,7 @@ def render(filename, engine, episode, cloth, render_size, annotations=None, num_
             #texture_randomize(cloth, 'blue_textures')
         if frame%9==0:
             index = ((scene.frame_end - scene.frame_start)*episode + frame)//9 
-            render_mask("image_masks/%06d_visible_mask.png", index)
+            render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
             scene.render.filepath = filename % index
             bpy.ops.render.render(write_still=True)
             if annotations is not None:
@@ -231,7 +231,8 @@ def render(filename, engine, episode, cloth, render_size, annotations=None, num_
             #texture_randomize(bpy.data.objects['Plane'], 'val2017')
         if frame%9==0:
             index = ((scene.frame_end - scene.frame_start)*episode + frame)//9 
-            render_mask("image_masks/%06d_visible_mask.png", index)
+            #render_mask("image_masks/%06d_visible_mask.png", index)
+            render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
             scene.render.filepath = filename % index
             bpy.ops.render.render(write_still=True)
             if annotations is not None:
@@ -239,7 +240,7 @@ def render(filename, engine, episode, cloth, render_size, annotations=None, num_
         scene.frame_set(frame)
     return annotations
 
-def render_mask(filename, index):
+def render_mask(mask_filename, depth_filename, index):
     # NOTE: this method is still in progress
     scene = bpy.context.scene
     saved = scene.render.engine
@@ -258,10 +259,20 @@ def render_mask(filename, index):
 
     links.new(render_node.outputs["Depth"], inv_node.inputs["Color"])
     links.new(inv_node.outputs[0], norm_node.inputs[0])
+    links.new(norm_node.outputs[0], composite.inputs["Image"])
+    scene.render.filepath = depth_filename % index
+    bpy.ops.render.render(write_still=True)
+
+    #links.new(render_node.outputs["Depth"], norm_node.inputs[0])
+    #links.new(norm_node.outputs[0], composite.inputs["Image"])
+
+
+    #links.new(norm_node.outputs[0], inv_node.inputs["Color"])
     links.new(norm_node.outputs[0], math_node.inputs[0])
+    #links.new(inv_node.outputs[0], math_node.inputs[0])
     links.new(math_node.outputs[0], composite.inputs["Image"])
 
-    scene.render.filepath = filename % index
+    scene.render.filepath = mask_filename % index
     bpy.ops.render.render(write_still=True)
     # Clean up 
     scene.render.engine = saved
@@ -327,25 +338,25 @@ def render_dataset(num_episodes, filename, num_annotations, render_width=485, re
                        annotations=annot, num_annotations=num_annotations, randomize=True) # Render, save ground truth
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(annot, outfile, sort_keys=True, indent=2)
-    
+
 if __name__ == '__main__':
 
-    if not os.path.exists("./images"):
-        os.makedirs('./images')
-    else:
+    if os.path.exists("./images"):
         os.system('rm -r ./images')
-        os.makedirs('./images')
+    os.makedirs('./images')
 
-    if not os.path.exists("./image_masks"):
-        os.makedirs('./image_masks')
-    else:
+    if os.path.exists("./image_masks"):
         os.system('rm -r ./image_masks')
-        os.makedirs('./image_masks')
+    os.makedirs('./image_masks')
+
+    if os.path.exists("./images_depth"):
+        os.system('rm -r ./images_depth')
+    os.makedirs('./images_depth')
 
     #texture_filepath = 'textures/cloth.jpg'
     texture_filepath = 'textures/blue.jpg'
     filename = "images/%06d_rgb.png"
-    episodes = 10 # Note each episode has 10 rendered frames 
+    episodes = 1 # Note each episode has 10 rendered frames 
     num_annotations = 700 # Pixelwise annotations per image
     start = time.time()
     #render_dataset(episodes, filename, num_annotations, color=green)
