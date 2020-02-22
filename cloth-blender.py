@@ -231,7 +231,7 @@ def render(filename, engine, episode, cloth, render_size, annotations=None, num_
             #texture_randomize(bpy.data.objects['Plane'], 'val2017')
         if frame%9==0:
             index = ((scene.frame_end - scene.frame_start)*episode + frame)//9 
-            #render_mask("image_masks/%06d_visible_mask.png", index)
+            render_mask("image_masks/%06d_visible_mask.png", index)
             scene.render.filepath = filename % index
             bpy.ops.render.render(write_still=True)
             if annotations is not None:
