@@ -50,7 +50,16 @@ def make_cloth():
     bpy.context.object.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
     #bpy.ops.object.modifier_add(type='SOLIDIFY')
     bpy.context.object.modifiers["Cloth"].collision_settings.use_self_collision = True
+    bpy.ops.object.particle_system_add()
     return bpy.context.object
+
+def texturize_3d(cloth):
+    bpy.data.particles["ParticleSettings"].type = 'HAIR'
+    bpy.data.particles["ParticleSettings"].hair_length = np.random.uniform(0.02, 0.02)
+    bpy.data.particles["ParticleSettings"].hair_step = 3
+    bpy.data.particles["ParticleSettings"].count = np.random.uniform(500, 1000)
+    bpy.data.particles["ParticleSettings"].child_type = 'INTERPOLATED'
+    bpy.data.particles["ParticleSettings"].clump_factor = np.random.uniform(0.2, 0.3)
 
 def unpin(cloth):
     if 'Pinned' in cloth.vertex_groups:
@@ -153,7 +162,8 @@ def randomize_camera_light():
     dy = np.random.uniform(-0.05,0.05)
     dz = np.random.uniform(0.5,1.0)
     bpy.context.scene.camera.location += Vector((dx,dy,dz))
-    scene.view_settings.exposure = random.uniform(1.6, 2.1)
+    #scene.view_settings.exposure = random.uniform(1.6, 2.1)
+    scene.view_settings.exposure = 0.1
     
     light_data = bpy.data.lights['Light']
     light_data.color = tuple(np.random.uniform(0,1,3))
@@ -161,15 +171,6 @@ def randomize_camera_light():
     light_data.shadow_color = tuple(np.random.uniform(0,1,3))
     light_obj = bpy.data.objects['LightObj']
     light_obj.data.color = tuple(np.random.uniform(0.7,1,3))
-    #sun = bpy.data.objects['Sun']
-    dx = np.random.uniform(-0.4,0.4)
-    dy = np.random.uniform(-0.4,0.4)
-    dz = np.random.uniform(-0.4,0.4)
-    #sun.location += Vector((dx,dy,dz))
-
-    #rotation = (0,0,np.random.uniform(0,np.pi/64))
-    #bpy.context.scene.camera.location = (x,y,z)
-    #bpy.context.scene.camera.rotation_euler = rotation
 
 def add_camera_light():
     #bpy.ops.object.light_add(type='SUN', radius=1, location=(0,0,0))
@@ -215,12 +216,11 @@ def render(filename, engine, episode, cloth, render_size, annotations=None, num_
             else:
                 if 'PlaneTexture' in bpy.data.materials:
                     bpy.data.materials.remove(bpy.data.materials['PlaneTexture'])
-            #texture_randomize(cloth, 'blue_textures')
         if frame%9==0:
             index = ((scene.frame_end - scene.frame_start)*episode + frame)//9 
             render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
-            scene.render.filepath = filename % index
-            bpy.ops.render.render(write_still=True)
+            #scene.render.filepath = filename % index
+            #bpy.ops.render.render(write_still=True)
             if annotations is not None:
                 annotations = annotate(cloth, index, annotations, num_annotations, render_size)
         scene.frame_set(frame)
@@ -233,8 +233,8 @@ def render(filename, engine, episode, cloth, render_size, annotations=None, num_
             index = ((scene.frame_end - scene.frame_start)*episode + frame)//9 
             #render_mask("image_masks/%06d_visible_mask.png", index)
             render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
-            scene.render.filepath = filename % index
-            bpy.ops.render.render(write_still=True)
+            #scene.render.filepath = filename % index
+            #bpy.ops.render.render(write_still=True)
             if annotations is not None:
                 annotations = annotate(cloth, index, annotations, num_annotations, render_size)
         scene.frame_set(frame)
@@ -260,16 +260,11 @@ def render_mask(mask_filename, depth_filename, index):
     links.new(render_node.outputs["Depth"], inv_node.inputs["Color"])
     links.new(inv_node.outputs[0], norm_node.inputs[0])
     links.new(norm_node.outputs[0], composite.inputs["Image"])
+
     scene.render.filepath = depth_filename % index
     bpy.ops.render.render(write_still=True)
 
-    #links.new(render_node.outputs["Depth"], norm_node.inputs[0])
-    #links.new(norm_node.outputs[0], composite.inputs["Image"])
-
-
-    #links.new(norm_node.outputs[0], inv_node.inputs["Color"])
     links.new(norm_node.outputs[0], math_node.inputs[0])
-    #links.new(inv_node.outputs[0], math_node.inputs[0])
     links.new(math_node.outputs[0], composite.inputs["Image"])
 
     scene.render.filepath = mask_filename % index
@@ -324,14 +319,14 @@ def render_dataset(num_episodes, filename, num_annotations, render_width=485, re
     annot = {}
     for episode in range(num_episodes):
         if randomize:
-            blue = np.array([0.1, 0.36, 0.56, 1])
-            rx,gx,bx = np.random.standard_normal(3)/10.0
-            random_blue = tuple(blue + np.array([rx,gx,bx,0]))
-            #random_blue = (np.random.uniform(0, 0.3), np.random.uniform(0.0, 0.5), np.random.uniform(0.6, 1.0), 1)
-            if random.random() < 0.5:
-                colorize(cloth, random_blue)
-            else:
-                texture_randomize(cloth, 'blue_textures')
+            texturize_3d(cloth)
+            #blue = np.array([0.1, 0.36, 0.56, 1])
+            #rx,gx,bx = np.random.standard_normal(3)/10.0
+            #random_blue = tuple(blue + np.array([rx,gx,bx,0]))
+            #if random.random() < 0.5:
+            #    colorize(cloth, random_blue)
+            #else:
+            #    texture_randomize(cloth, 'blue_textures')
         reset_cloth(cloth) # Restores cloth to flat state
         cloth = generate_cloth_state(cloth) # Creates a new deformed state
         annot = render(filename, engine, episode, cloth, render_size, \
@@ -356,10 +351,11 @@ if __name__ == '__main__':
     #texture_filepath = 'textures/cloth.jpg'
     texture_filepath = 'textures/blue.jpg'
     filename = "images/%06d_rgb.png"
-    episodes = 1 # Note each episode has 10 rendered frames 
+    episodes = 2 # Note each episode has 10 rendered frames 
     num_annotations = 700 # Pixelwise annotations per image
     start = time.time()
     #render_dataset(episodes, filename, num_annotations, color=green)
     #render_dataset(episodes, filename, num_annotations, texture_filepath=texture_filepath)
+    #render_dataset(episodes, filename, num_annotations, randomize=True)
     render_dataset(episodes, filename, num_annotations, randomize=True)
     print("Render time:", time.time() - start)
