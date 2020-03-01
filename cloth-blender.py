@@ -51,7 +51,8 @@ def make_cloth():
     bpy.context.object.modifiers["Subdivision"].levels=3 # Smooths the cloth so it doesn't look blocky
     #bpy.ops.object.modifier_add(type='SOLIDIFY')
     bpy.context.object.modifiers["Cloth"].collision_settings.use_self_collision = True
-    bpy.ops.object.particle_system_add()
+    bpy.context.object.modifiers["Cloth"].settings.quality = 8
+    #bpy.ops.object.particle_system_add()
     return bpy.context.object
 
 def texturize_3d(cloth):
@@ -72,26 +73,25 @@ def generate_cloth_state(cloth):
     # Pinned group is the vertices that should not fall
     if cloth is None:
         cloth = make_cloth()
-    #dx = np.random.uniform(0,0.7,1)*random.choice((-1,1))
-    #dy = np.random.uniform(0,0.7,1)*random.choice((-1,1))
-    #dz = np.random.uniform(0.4,0.8,1)
-    dx = np.random.uniform(0,0.2,1)*random.choice((-1,1))
-    dy = np.random.uniform(0,0.2,1)*random.choice((-1,1))
-    dz = np.random.uniform(0.6,0.8,1)
+    #dx = np.random.uniform(0,0.2,1)*random.choice((-1,1))
+    #dy = np.random.uniform(0,0.2,1)*random.choice((-1,1))
+    #dz = np.random.uniform(0.6,0.8,1)
+    dx = np.random.uniform(0,0.04,1)*random.choice((-1,1))
+    dy = np.random.uniform(0,0.04,1)*random.choice((-1,1))
+    dz = np.random.uniform(0.5,0.6,1)
     cloth.location = (dx,dy,dz)
     cloth.rotation_euler = (0, 0, random.uniform(-np.pi/4, np.pi/4)) # fixed z, rotate only about x/y axis slightly
     if 'Pinned' in cloth.vertex_groups:
         cloth.vertex_groups.remove(cloth.vertex_groups['Pinned'])
     pinned_group = bpy.context.object.vertex_groups.new(name='Pinned')
-    #n = random.choice(range(1,4)) # Number of vertices to pin
-    n = random.choice(range(1,3)) # Number of vertices to pin
+    n = random.choice(range(1,4)) # Number of vertices to pin
     subsample = sample(range(len(cloth.data.vertices)), n)
     pinned_group.add(subsample, 1.0, 'ADD')
     cloth.modifiers["Cloth"].settings.vertex_group_mass = 'Pinned'
     # Episode length = 30 frames
     bpy.context.scene.frame_start = 0 
     #bpy.context.scene.frame_end = 90 # Roughly when the cloth settles
-    bpy.context.scene.frame_end = 90 # Roughly when the cloth settles
+    bpy.context.scene.frame_end = 60 # Roughly when the cloth settles
     return cloth
 
 def reset_cloth(cloth):
@@ -159,6 +159,7 @@ def randomize_camera():
     bpy.context.scene.camera.location += Vector((dx,dy,dz))
     
 def randomize_light():
+    scene = bpy.context.scene
     scene.view_settings.exposure = random.uniform(1.6, 2.1)
     light_data = bpy.data.lights['Light']
     light_data.color = tuple(np.random.uniform(0,1,3))
@@ -172,12 +173,13 @@ def randomize_table(table):
     dy = np.random.uniform(-0.01,0.01)
     dz = np.random.uniform(-0.025,0.025)
     table.location += Vector((dx,dy,dz))
-    scale = np.random.uniform(0.65,0.75,3)
+    #scale = np.random.uniform(0.65,0.75,3)
+    scale = np.random.uniform(0.52,0.6,3)
     table.scale = Vector(tuple(scale))
-    rot_amt = 180
-    table.rotation_euler = (np.random.uniform(-np.pi/rot_amt, np.pi/rot_amt), \
-                            np.random.uniform(-np.pi/rot_amt, np.pi/rot_amt), \
-                            np.random.uniform(-np.pi/rot_amt, np.pi/rot_amt))
+    #rot_amt = 180
+    #table.rotation_euler = (np.random.uniform(-np.pi/rot_amt, np.pi/rot_amt), \
+    #                        np.random.uniform(-np.pi/rot_amt, np.pi/rot_amt), \
+    #                        np.random.uniform(-np.pi/rot_amt, np.pi/rot_amt))
 
 def add_camera_light():
     light_data = bpy.data.lights.new(name="Light", type='POINT')
@@ -354,7 +356,7 @@ if __name__ == '__main__':
     #texture_filepath = 'textures/cloth.jpg'
     texture_filepath = 'textures/blue.jpg'
     filename = "images/%06d_rgb.png"
-    episodes = 5 # Note each episode has 10 rendered frames 
+    episodes = 180 # Note each episode has 10 rendered frames 
     num_annotations = 700 # Pixelwise annotations per image
     start = time.time()
     color = (0, 0, 0.5, 1)
